@@ -1,5 +1,6 @@
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\app\Main.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaAccesoDatos\ConexionBD.java
+C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaAccesoDatos\QDashboard.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaAccesoDatos\QProductos.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaAccesoDatos\QProveedores.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaAccesoDatos\QUsuarios.java
@@ -17,6 +18,10 @@ C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\P
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaPresentacion\FrmFactura.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaPresentacion\Login.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\capaPresentacion\MdiPrincipal.java
+C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtCarrito.java
+C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtClientes.java
+C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtDashboard.java
+C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtDetalleVenta.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtGeneric.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtProductos.java
 C:\Users\PC\OneDrive\Escritorio\UNAMBA\SEMESTRE IV\GESTION DE PROYECTOS AGILES\PROYECTO-FINAL\SitemaDeVentaRopa\src\main\java\com\irissoft\datos\DtProveedores.java

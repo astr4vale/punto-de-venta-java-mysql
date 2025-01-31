@@ -1,54 +1,83 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/MDIApplication.java to edit this template
- */
 package com.irissoft.capaPresentacion;
 
+import com.irissoft.capaAccesoDatos.QDashboard;
 import com.irissoft.capaNegocios.NgProductos;
 import com.irissoft.capaNegocios.NgProveedores;
 import com.irissoft.capaNegocios.NgUsuarios;
 import com.irissoft.capaNegocios.NgVentas;
+import com.irissoft.datos.DtCarrito;
+import com.irissoft.datos.DtClientes;
+import com.irissoft.datos.DtDashboard;
 import com.irissoft.datos.DtProductos;
 import com.irissoft.datos.DtUsuarios;
 import com.irissoft.datos.DtVentas;
 import java.awt.Color;
+import java.text.DecimalFormat;
 import java.util.List;
+import javax.swing.DefaultListModel;
 import javax.swing.JOptionPane;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 
 /**
  *
  * @author KALI
  */
 public final class MdiPrincipal extends javax.swing.JFrame {
-
-    // Modelos de tablas
+    
+    // Modelos de datos
     private final DefaultTableModel dtmUsuarios = new DefaultTableModel();
     private final DefaultTableModel dtmProductos = new DefaultTableModel();
     private final DefaultTableModel dtmVentas = new DefaultTableModel();
+    private DefaultListModel<DtCarrito> modelCarrito;
+    private double totalPagar = 0.0;
     
     // Capas de negocio
     private final NgUsuarios ngUsuarios = new NgUsuarios();
     private final NgProductos ngProductos = new NgProductos();
     private final NgVentas ngVentas = new NgVentas();
-    private final NgProveedores ngProveedores = new NgProveedores();    // Capa de negocio
+    private final NgProveedores ngProveedores = new NgProveedores();
+    
+    // Datos de la aplicación
+    private DtUsuarios usuarioActual = new DtUsuarios();
+    private QDashboard qDashboard = new QDashboard();
+    private DtClientes cliente;
 
     public MdiPrincipal() {
         initComponents();
+        inicializarComponentes();
+        cargarDatosIniciales();
+        iniciarActualizacionDashboard();
+    }
+ 
+    private void inicializarComponentes() {
         configurarPaneles();
         configurarTablas();
-        cargarDatosIniciales();
         configurarBuscadores();
-
+        inicializarCarrito();
     }
 
+    private void inicializarCarrito() {
+        modelCarrito = new DefaultListModel<>();
+        ListaProductosVender.setModel(modelCarrito);
+    }
+    
+    private void iniciarActualizacionDashboard() {
+        Timer timer = new Timer(2000, (e) -> actualizarDatosDashboard());
+        timer.start();
+    }
+    
+        // Métodos de configuración inicial
     private void configurarPaneles() {
+        dashboardPanel.setVisible(true);
         configuracionPanel.setVisible(false);
         reportesPanel.setVisible(false);
         usuariosPanel.setVisible(false);
-        dashboardPanel.setVisible(true);
         puntoDeVentaPanel.setVisible(false);
         productosPanel.setVisible(false);
     }
@@ -98,18 +127,17 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         tablaVentas.getColumnModel().getColumn(0).setMaxWidth(0);
     }
 
-    // 3. Carga inicial de datos
+    // Métodos de datos iniciales
     private void cargarDatosIniciales() {
         cargarUsuariosIniciales();
         cargarProductosIniciales();
         cargarVentasIniciales();
     }
-    
+
     private void cargarUsuariosIniciales() {
         actualizarTablaUsuarios(ngUsuarios.getAll());
     }
-    
-    
+
     private void cargarProductosIniciales() {
         actualizarTablaProductos(ngProductos.getAll());
     }
@@ -118,84 +146,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         actualizarTablaVentas(ngVentas.getAll());
     }
 
-    // 4. Configuración de buscadores
-    private void configurarBuscadores() {
-        configurarBuscadorUsuarios();
-        configurarBuscadorProductos();
-        configurarBuscadorVentas();
-    }
-
-    private void configurarBuscadorUsuarios() {
-        txtBuscadorUsuarios.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                buscarUsuarios();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                buscarUsuarios();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                buscarUsuarios();
-            }
-        });
-    }
-
-    private void configurarBuscadorProductos() {
-        txtBuscadorProductos.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                buscarProductos();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                buscarProductos();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                buscarProductos();
-            }
-        });
-    }
-
-    private void configurarBuscadorVentas() {
-        txtBuscadorVentas.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                buscarVentas();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                buscarVentas();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                buscarVentas();
-            }
-        });
-    }
-
-    // 5. Métodos de búsqueda
-    private void buscarUsuarios() {
-        actualizarTablaUsuarios(ngUsuarios.buscarUsuarios(txtBuscadorUsuarios.getText().trim()));
-    }
-
-    private void buscarProductos() {
-        actualizarTablaProductos(ngProductos.buscarProductos(txtBuscadorProductos.getText().trim()));
-    }
-
-    private void buscarVentas() {
-        actualizarTablaVentas(ngVentas.buscarVentas(txtBuscadorVentas.getText().trim()));
-    }
-
-    // 6. Actualización de tablas
+    // Métodos de actualización de datos
     public void actualizarTablaUsuarios() {
         actualizarTablaUsuarios(ngUsuarios.getAll());
     }
@@ -216,50 +167,195 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         actualizarTablaProductos(ngProductos.getAll());
     }
 
-    private void actualizarTablaProductos(List<DtProductos> productos) {
-        dtmProductos.setRowCount(0); // Limpiar tabla
+    public void actualizarTablaVentas() {
+        actualizarTablaVentas(ngVentas.getAll());
+    }
 
-        for (DtProductos p : productos) {
-            dtmProductos.addRow(new Object[]{
-                p.getIdProducto(),
-                p.getSku(),
-                p.getNombreProducto(),
-                p.getDescripcion(),
-                p.getCantidad(),
-                p.getPrecio(),
-                p.getProveedor().getNombre(),
-                p.getTalla(),
-                p.getColor()
-            });
-        }
+    private void actualizarTablaProductos(List<DtProductos> productos) {
+        dtmProductos.setRowCount(0);
+        productos.forEach(p -> dtmProductos.addRow(new Object[]{
+            p.getIdProducto(),
+            p.getSku(),
+            p.getNombreProducto(),
+            p.getDescripcion(),
+            p.getCantidad(),
+            p.getPrecio(),
+            p.getProveedor().getNombre(),
+            p.getTalla(),
+            p.getColor()
+        }));
     }
 
     private void actualizarTablaVentas(List<DtVentas> productos) {
-        dtmVentas.setRowCount(0); // Limpiar tabla
+        dtmVentas.setRowCount(0);
+        productos.forEach(p -> dtmVentas.addRow(new Object[]{
+            p.getIdProducto(),
+            p.getNombreProducto(),
+            p.getCantidad(),
+            p.getPrecio(),
+            p.getTalla(),
+            p.getColor()
+        }));
+    }
 
-        for (DtVentas p : productos) {
-            dtmVentas.addRow(new Object[]{
-                p.getIdProducto(),
-                p.getNombreProducto(),
-                p.getCantidad(),
-                p.getPrecio(),
-                p.getTalla(),
-                p.getColor()
-            });
+    // Métodos de interacción de usuario
+    public void setUsuarioActual(DtUsuarios usuario) {
+        usuarioActual = usuario;
+        actualizarInformacionUsuario();
+    }
+
+    private void actualizarInformacionUsuario() {
+        if (usuarioActual != null) {
+            lblNombreUsuario.setText(usuarioActual.getNombreUsuario());
+            lblRol.setText(usuarioActual.getRol());
         }
     }
 
+    public void setCliente(DtClientes cliente) {
+        this.cliente = cliente;
+    }
+
+    // Métodos del dashboard
+    private void actualizarDatosDashboard() {
+        DtDashboard datos = qDashboard.obtenerDatosDashboard();
+        DecimalFormat formatoMoneda = new DecimalFormat("$#,##0.00");
+        DecimalFormat formatoNumero = new DecimalFormat("#,##0");
+
+        lblVentasHoy.setText(formatoMoneda.format(datos.getTotalVentas()));
+        lblOrdenes.setText(formatoNumero.format(datos.getTotalOrdenes()));
+        lblClientes.setText(formatoNumero.format(datos.getTotalClientes()));
+        lblProductos.setText(formatoNumero.format(datos.getTotalProductos()));
+    }
+
+
+    // Métodos del carrito de compras
+    private void productoSeleccionado() {
+        int filaSeleccionada = tablaVentas.getSelectedRow();
+        if (filaSeleccionada == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione un producto primero.", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        try {
+            DtCarrito item = new DtCarrito();
+            item.setIdProducto(Integer.parseInt(tablaVentas.getValueAt(filaSeleccionada, 0).toString()));
+            item.setNombre(tablaVentas.getValueAt(filaSeleccionada, 1).toString());
+            item.setCantidad(Integer.parseInt(txtCantidadProducto.getText()));
+            item.setPrecio(Double.parseDouble(tablaVentas.getValueAt(filaSeleccionada, 3).toString()));
+
+            modelCarrito.addElement(item);
+            actualizarTotalPagar(item.getPrecio() * item.getCantidad());
+            txtCantidadProducto.setText("");
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Cantidad inválida", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+
+    private void actualizarTotalPagar(double monto) {
+        totalPagar += monto;
+        lblTotal.setText("S/. " + totalPagar);
+    }
+    
+    private void eliminarProducto() {
+        int indiceSeleccionado = ListaProductosVender.getSelectedIndex();
+        if (indiceSeleccionado == -1) {
+            JOptionPane.showMessageDialog(this, "Seleccione un producto para eliminar", "Advertencia", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        DtCarrito item = modelCarrito.getElementAt(indiceSeleccionado);
+        totalPagar -= item.getPrecio() * item.getCantidad();
+        modelCarrito.remove(indiceSeleccionado);
+        lblTotal.setText("S/. " + totalPagar);
+    }
+
+    // Métodos de procesamiento de ventas
+    public void completarCompra() {
+        if (cliente == null) {
+            JOptionPane.showMessageDialog(this, "Cliente no seleccionado", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        boolean ventaExitosa = ngVentas.realizarVenta(
+                usuarioActual.getIdUsuario(),
+                cliente.getDniRuc(),
+                cliente.getNombre(),
+                cliente.getTelefono(),
+                cliente.getDireccion(),
+                convertirCarritoAJson()
+        );
+
+        if (ventaExitosa) {
+            JOptionPane.showMessageDialog(this, "Venta registrada exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            modelCarrito.clear();
+            totalPagar = 0.0;
+            lblTotal.setText("S/. 0.00");
+            actualizarTablaProductos();
+            actualizarTablaVentas();
+        } else {
+            JOptionPane.showMessageDialog(this, "Error al procesar la venta", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String convertirCarritoAJson() {
+        JSONArray jsonCarrito = new JSONArray();
+        for (int i = 0; i < modelCarrito.size(); i++) {
+            DtCarrito item = modelCarrito.getElementAt(i);
+            JSONObject jsonItem = new JSONObject();
+            jsonItem.put("idProducto", item.getIdProducto());
+            jsonItem.put("cantidad", item.getCantidad());
+            jsonCarrito.put(jsonItem);
+        }
+        return jsonCarrito.toString();
+    }
+  
+    // Métodos de búsqueda
+    private void configurarBuscadores() {
+        agregarListenerBusqueda(txtBuscadorUsuarios, this::buscarUsuarios);
+        agregarListenerBusqueda(txtBuscadorProductos, this::buscarProductos);
+        agregarListenerBusqueda(txtBuscadorVentas, this::buscarVentas);
+    }
+
+    private void agregarListenerBusqueda(javax.swing.JTextField campo, Runnable accion) {
+        campo.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                accion.run();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                accion.run();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                accion.run();
+            }
+        });
+    }
+
+    private void buscarUsuarios() {
+        actualizarTablaUsuarios(ngUsuarios.buscarUsuarios(txtBuscadorUsuarios.getText().trim()));
+    }
+
+    private void buscarProductos() {
+        actualizarTablaProductos(ngProductos.buscarProductos(txtBuscadorProductos.getText().trim()));
+    }
+
+    private void buscarVentas() {
+        actualizarTablaVentas(ngVentas.buscarVentas(txtBuscadorVentas.getText().trim()));
+    }
+
+    // Métodos auxiliares
     private boolean validarFilaSeleccionada(int fila) {
         if (fila == -1) {
-            mostrarAdvertencia("Seleccione un usuario de la tabla");
+            mostrarAdvertencia("Seleccione un registro de la tabla");
             return false;
         }
         return true;
-    }
-
-    private int obtenerIdUsuarioSeleccionado(int fila) {
-        return (int) tablaUsuarios.getValueAt(fila, 0);
-    }
+    }    
 
     private void mostrarAdvertencia(String mensaje) {
         JOptionPane.showMessageDialog(this, mensaje, "Advertencia", JOptionPane.WARNING_MESSAGE);
@@ -272,23 +368,17 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 JOptionPane.YES_NO_OPTION
         );
 
-        if (confirmacion == JOptionPane.YES_OPTION) {
-            ejecutarEliminacionUsuario(idUsuario);
-        }
-    }
-
-    private void ejecutarEliminacionUsuario(int idUsuario) {
-        boolean exito = ngUsuarios.delete(String.valueOf(idUsuario));
-
-        if (exito) {
+        if (confirmacion == JOptionPane.YES_OPTION && ngUsuarios.delete(String.valueOf(idUsuario))) {
             actualizarTablaUsuarios();
-            JOptionPane.showMessageDialog(this,
-                    "Usuario eliminado exitosamente",
-                    "Éxito",
-                    JOptionPane.INFORMATION_MESSAGE
-            );
+            JOptionPane.showMessageDialog(this, "Usuario eliminado exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
         }
     }
+
+
+    private int obtenerIdUsuarioSeleccionado(int fila) {
+        return (int) tablaUsuarios.getValueAt(fila, 0);
+    }
+
 
     private void abrirFormularioEdicionUsuario(int idUsuario) {
         DtUsuarios usuario = ngUsuarios.getUsuarioPorId(idUsuario);
@@ -346,7 +436,10 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         pnlContainer = new javax.swing.JPanel();
         dashboardPanel = new javax.swing.JPanel();
         jPanel5 = new javax.swing.JPanel();
-        jLabel1 = new javax.swing.JLabel();
+        lblUstedes = new javax.swing.JLabel();
+        lblbienvenido = new javax.swing.JLabel();
+        lblRol = new javax.swing.JLabel();
+        lblNombreUsuario = new javax.swing.JLabel();
         jPanel6 = new javax.swing.JPanel();
         jPanel7 = new javax.swing.JPanel();
         jLabel20 = new javax.swing.JLabel();
@@ -404,16 +497,17 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jPanel22 = new javax.swing.JPanel();
         jPanel24 = new javax.swing.JPanel();
         jLabel44 = new javax.swing.JLabel();
-        jTextField2 = new javax.swing.JTextField();
+        txtCantidadProducto = new javax.swing.JTextField();
         btnAñadirCarrito = new javax.swing.JLabel();
         jPanel3 = new javax.swing.JPanel();
         jPanel25 = new javax.swing.JPanel();
         jScrollPane2 = new javax.swing.JScrollPane();
         ListaProductosVender = new javax.swing.JList<>();
         jPanel26 = new javax.swing.JPanel();
-        jLabel40 = new javax.swing.JLabel();
-        jLabel42 = new javax.swing.JLabel();
+        btnQuitarProductoDeLista = new javax.swing.JLabel();
         btnPagarCompra = new javax.swing.JLabel();
+        jLabel1 = new javax.swing.JLabel();
+        lblTotal = new javax.swing.JLabel();
         productosPanel = new javax.swing.JPanel();
         jPanel28 = new javax.swing.JPanel();
         jScrollPane3 = new javax.swing.JScrollPane();
@@ -877,25 +971,31 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         dashboardPanel.setToolTipText("");
 
         jPanel5.setBackground(new java.awt.Color(243, 244, 246));
+        jPanel5.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
-        jLabel1.setBackground(new java.awt.Color(0, 0, 0));
-        jLabel1.setFont(new java.awt.Font("Arial Black", 1, 18)); // NOI18N
-        jLabel1.setForeground(new java.awt.Color(0, 0, 0));
-        jLabel1.setText("USUARIO 1");
+        lblUstedes.setBackground(new java.awt.Color(0, 0, 0));
+        lblUstedes.setFont(new java.awt.Font("Arial Black", 1, 18)); // NOI18N
+        lblUstedes.setForeground(new java.awt.Color(0, 0, 0));
+        lblUstedes.setText("Usted es: ");
+        jPanel5.add(lblUstedes, new org.netbeans.lib.awtextra.AbsoluteConstraints(415, 0, 140, 44));
 
-        javax.swing.GroupLayout jPanel5Layout = new javax.swing.GroupLayout(jPanel5);
-        jPanel5.setLayout(jPanel5Layout);
-        jPanel5Layout.setHorizontalGroup(
-            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel5Layout.createSequentialGroup()
-                .addGap(25, 25, 25)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 155, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-        );
-        jPanel5Layout.setVerticalGroup(
-            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
-        );
+        lblbienvenido.setBackground(new java.awt.Color(0, 0, 0));
+        lblbienvenido.setFont(new java.awt.Font("Arial Black", 1, 18)); // NOI18N
+        lblbienvenido.setForeground(new java.awt.Color(0, 0, 0));
+        lblbienvenido.setText("Bienvenido: ");
+        jPanel5.add(lblbienvenido, new org.netbeans.lib.awtextra.AbsoluteConstraints(25, 0, 150, 44));
+
+        lblRol.setBackground(new java.awt.Color(0, 0, 0));
+        lblRol.setFont(new java.awt.Font("Dutch801 XBd BT", 0, 14)); // NOI18N
+        lblRol.setForeground(new java.awt.Color(102, 102, 102));
+        lblRol.setText("ROL");
+        jPanel5.add(lblRol, new org.netbeans.lib.awtextra.AbsoluteConstraints(520, 0, 120, 44));
+
+        lblNombreUsuario.setBackground(new java.awt.Color(0, 0, 0));
+        lblNombreUsuario.setFont(new java.awt.Font("Dutch801 XBd BT", 0, 14)); // NOI18N
+        lblNombreUsuario.setForeground(new java.awt.Color(102, 102, 102));
+        lblNombreUsuario.setText("USUARIO");
+        jPanel5.add(lblNombreUsuario, new org.netbeans.lib.awtextra.AbsoluteConstraints(160, 0, 170, 44));
 
         jPanel6.setBackground(new java.awt.Color(243, 244, 246));
 
@@ -905,7 +1005,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
         lblProductos.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
         lblProductos.setForeground(new java.awt.Color(0, 0, 0));
-        lblProductos.setText("129");
+        lblProductos.setText("S/N");
 
         jLabel22.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\PRODUCTOS2.png")); // NOI18N
 
@@ -937,11 +1037,11 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
         jPanel9.setBackground(new java.awt.Color(255, 255, 255));
 
-        jLabel11.setText("Ventas Hoy");
+        jLabel11.setText("Ventas Totales");
 
         lblVentasHoy.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
         lblVentasHoy.setForeground(new java.awt.Color(0, 0, 0));
-        lblVentasHoy.setText("$ 1.0000");
+        lblVentasHoy.setText("S/N");
 
         jLabel13.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\DOLAR.png")); // NOI18N
 
@@ -977,7 +1077,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
         lblOrdenes.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
         lblOrdenes.setForeground(new java.awt.Color(0, 0, 0));
-        lblOrdenes.setText("23");
+        lblOrdenes.setText("S/N");
 
         jLabel16.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\ORDENES.png")); // NOI18N
 
@@ -1013,7 +1113,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
         lblClientes.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
         lblClientes.setForeground(new java.awt.Color(0, 0, 0));
-        lblClientes.setText("120");
+        lblClientes.setText("S/N");
 
         jLabel19.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\CLIENTES.png")); // NOI18N
 
@@ -1257,13 +1357,13 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         dashboardPanelLayout.setHorizontalGroup(
             dashboardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(dashboardPanelLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap(30, Short.MAX_VALUE)
                 .addGroup(dashboardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(dashboardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                         .addComponent(jPanel8, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jPanel5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(31, Short.MAX_VALUE))
         );
         dashboardPanelLayout.setVerticalGroup(
             dashboardPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -1331,10 +1431,15 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jLabel44.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\CANTIDAD.png")); // NOI18N
         jLabel44.setText("Cantidad");
         jPanel24.add(jLabel44, new org.netbeans.lib.awtextra.AbsoluteConstraints(37, 30, 110, -1));
-        jPanel24.add(jTextField2, new org.netbeans.lib.awtextra.AbsoluteConstraints(150, 35, 220, -1));
+        jPanel24.add(txtCantidadProducto, new org.netbeans.lib.awtextra.AbsoluteConstraints(150, 35, 220, -1));
 
         btnAñadirCarrito.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\AÑADIR.png")); // NOI18N
         btnAñadirCarrito.setText("Añadir");
+        btnAñadirCarrito.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                btnAñadirCarritoMouseClicked(evt);
+            }
+        });
         jPanel24.add(btnAñadirCarrito, new org.netbeans.lib.awtextra.AbsoluteConstraints(380, 30, 93, -1));
 
         javax.swing.GroupLayout jPanel22Layout = new javax.swing.GroupLayout(jPanel22);
@@ -1401,11 +1506,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jPanel3.setPreferredSize(new java.awt.Dimension(300, 0));
 
         ListaProductosVender.setBackground(new java.awt.Color(255, 255, 255));
-        ListaProductosVender.setModel(new javax.swing.AbstractListModel<String>() {
-            String[] strings = { "Item 1", "Item 2", "Item 3", "Item 4", "Item 5" };
-            public int getSize() { return strings.length; }
-            public String getElementAt(int i) { return strings[i]; }
-        });
         jScrollPane2.setViewportView(ListaProductosVender);
 
         javax.swing.GroupLayout jPanel25Layout = new javax.swing.GroupLayout(jPanel25);
@@ -1416,20 +1516,21 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         );
         jPanel25Layout.setVerticalGroup(
             jPanel25Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 426, Short.MAX_VALUE)
+            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 313, Short.MAX_VALUE)
         );
 
         jPanel26.setBackground(new java.awt.Color(255, 255, 255));
         jPanel26.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
-        jLabel40.setBackground(new java.awt.Color(34, 197, 94));
-        jLabel40.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\EFECTIVO.png")); // NOI18N
-        jLabel40.setText("Efectivo");
-        jPanel26.add(jLabel40, new org.netbeans.lib.awtextra.AbsoluteConstraints(60, 40, -1, -1));
-
-        jLabel42.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\TARJETA.png")); // NOI18N
-        jLabel42.setText("Tarjeta");
-        jPanel26.add(jLabel42, new org.netbeans.lib.awtextra.AbsoluteConstraints(60, 10, -1, -1));
+        btnQuitarProductoDeLista.setBackground(new java.awt.Color(34, 197, 94));
+        btnQuitarProductoDeLista.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\EFECTIVO.png")); // NOI18N
+        btnQuitarProductoDeLista.setText("Eliminar Producto");
+        btnQuitarProductoDeLista.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                btnQuitarProductoDeListaMouseClicked(evt);
+            }
+        });
+        jPanel26.add(btnQuitarProductoDeLista, new org.netbeans.lib.awtextra.AbsoluteConstraints(40, 30, -1, -1));
 
         btnPagarCompra.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\PAGAR.png")); // NOI18N
         btnPagarCompra.setText("Pagar");
@@ -1438,26 +1539,39 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 btnPagarCompraMouseClicked(evt);
             }
         });
-        jPanel26.add(btnPagarCompra, new org.netbeans.lib.awtextra.AbsoluteConstraints(210, 20, -1, -1));
+        jPanel26.add(btnPagarCompra, new org.netbeans.lib.awtextra.AbsoluteConstraints(210, 30, -1, -1));
+
+        jLabel1.setText("TOTAL: ");
+
+        lblTotal.setText("0");
 
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jPanel25, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jPanel26, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addGap(0, 0, Short.MAX_VALUE)
+                        .addComponent(jLabel1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(lblTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel25, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel26, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE))
+                .addGap(15, 15, 15))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap(33, Short.MAX_VALUE)
+                .addContainerGap(58, Short.MAX_VALUE)
                 .addComponent(jPanel25, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
-                .addComponent(jPanel26, javax.swing.GroupLayout.PREFERRED_SIZE, 86, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(63, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel1)
+                    .addComponent(lblTotal))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 52, Short.MAX_VALUE)
+                .addComponent(jPanel26, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(41, Short.MAX_VALUE))
         );
 
         puntoDeVentaPanel.add(jPanel3);
@@ -2348,49 +2462,24 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     }//GEN-LAST:event_btnEliminarProductoMouseClicked
 
     private void btnPagarCompraMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnPagarCompraMouseClicked
-        FrmDetalleFactura frmDetalleFactura = new FrmDetalleFactura();
+        FrmDetalleFactura frmDetalleFactura = new FrmDetalleFactura(this); 
         desktopPane.add(frmDetalleFactura);
         frmDetalleFactura.setVisible(true);
     }//GEN-LAST:event_btnPagarCompraMouseClicked
 
-
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String args[]) {
-        /* Set the Nimbus look and feel */
-        //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-        /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-         */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(MdiPrincipal.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
-        //</editor-fold>
-        //</editor-fold>
-        //</editor-fold>
-        //</editor-fold>
+    private void btnAñadirCarritoMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnAñadirCarritoMouseClicked
+        productoSeleccionado();
         
-        //</editor-fold>
-        //</editor-fold>
-        //</editor-fold>
-        //</editor-fold>
+        
+    }//GEN-LAST:event_btnAñadirCarritoMouseClicked
 
-        /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> {
-            new MdiPrincipal().setVisible(true);
-        });
-    }
+    private void btnQuitarProductoDeListaMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnQuitarProductoDeListaMouseClicked
+        eliminarProducto();
+    }//GEN-LAST:event_btnQuitarProductoDeListaMouseClicked
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JList<String> ListaProductosVender;
+    private javax.swing.JList<DtCarrito> ListaProductosVender;
     private javax.swing.JProgressBar barraProgreso1;
     private javax.swing.JProgressBar barraProgreso2;
     private javax.swing.JProgressBar barraProgreso3;
@@ -2409,6 +2498,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel btnEliminarProducto;
     private javax.swing.JLabel btnEliminarUsuario;
     private javax.swing.JLabel btnPagarCompra;
+    private javax.swing.JLabel btnQuitarProductoDeLista;
     private javax.swing.JPanel configuracionPanel;
     private javax.swing.JPanel dashboardPanel;
     private javax.swing.JDesktopPane desktopPane;
@@ -2438,8 +2528,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel35;
     private javax.swing.JLabel jLabel39;
     private javax.swing.JLabel jLabel4;
-    private javax.swing.JLabel jLabel40;
-    private javax.swing.JLabel jLabel42;
     private javax.swing.JLabel jLabel44;
     private javax.swing.JLabel jLabel45;
     private javax.swing.JLabel jLabel46;
@@ -2503,7 +2591,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JTable jTable5;
-    private javax.swing.JTextField jTextField2;
     private javax.swing.JTextField jTextField3;
     private javax.swing.JTextField jTextField5;
     private javax.swing.JTextField jTextField7;
@@ -2518,6 +2605,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel lblMonto;
     private javax.swing.JLabel lblMonto2;
     private javax.swing.JLabel lblMonto3;
+    private javax.swing.JLabel lblNombreUsuario;
     private javax.swing.JLabel lblNumeroDeOrden;
     private javax.swing.JLabel lblNumeroDeOrden2;
     private javax.swing.JLabel lblNumeroDeOrden3;
@@ -2526,8 +2614,12 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel lblProductos;
     private javax.swing.JLabel lblPuntoDeVenta;
     private javax.swing.JLabel lblReportes;
+    private javax.swing.JLabel lblRol;
+    private javax.swing.JLabel lblTotal;
+    private javax.swing.JLabel lblUstedes;
     private javax.swing.JLabel lblUsuarios;
     private javax.swing.JLabel lblVentasHoy;
+    private javax.swing.JLabel lblbienvenido;
     private javax.swing.JPanel pnlContainer;
     private javax.swing.JPanel productosPanel;
     private javax.swing.JPanel puntoDeVentaPanel;
@@ -2538,6 +2630,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JTextField txtBuscadorProductos;
     private javax.swing.JTextField txtBuscadorUsuarios;
     private javax.swing.JTextField txtBuscadorVentas;
+    private javax.swing.JTextField txtCantidadProducto;
     private javax.swing.JPanel usuariosPanel;
     // End of variables declaration//GEN-END:variables
 

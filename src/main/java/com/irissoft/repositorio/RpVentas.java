@@ -12,18 +12,14 @@ import java.util.List;
  */
 public interface RpVentas<Dt> {
 
-    int insert(Dt dt);
-
     List<Dt> getAll();
-
-    boolean delete(int idProducto);
-
-    boolean update(Dt dt);
 
     Dt getProductoById(int idProducto);
 
     List<Dt> buscarVentas(String searchTerm);
 
     boolean existeProductoPorSKU(String sku);
+    
+    boolean realizarVenta(int idUsuario, String dniRucCliente, String nombreCliente, String telefonoCliente, String direccionCliente, String productosJSON);
 
 }

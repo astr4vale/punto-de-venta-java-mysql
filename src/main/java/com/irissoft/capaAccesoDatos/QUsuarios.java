@@ -241,4 +241,40 @@ public class QUsuarios implements RpUsuarios<DtUsuarios> {
         return resultados;
     }
 
+    @Override
+    public DtUsuarios autenticarUsuario(String identificador, String contrasena) {
+        con = new ConexionBD();
+        DtUsuarios usuario = null;
+        query = "SELECT * FROM usuarios WHERE (correo = ? OR dniUsuario = ?) AND contrasena = ?";
+
+        try {
+            PreparedStatement ps = con.conexion.prepareStatement(query);
+            ps.setString(1, identificador);
+            ps.setString(2, identificador);
+            ps.setString(3, contrasena);
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                usuario = new DtUsuarios();
+                // Mapear todos los campos necesarios
+                usuario.setIdUsuario(rs.getInt("idUsuario"));
+                usuario.setDniUsuario(rs.getString("dniUsuario"));
+                usuario.setNombreUsuario(rs.getString("nombreUsuario")); // Asegúrate de mapear el nombre
+                usuario.setCorreo(rs.getString("correo"));
+                usuario.setRol(rs.getString("rol"));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error en autenticarUsuario: " + e.getMessage());
+        } finally {
+            if (con.conexion != null) {
+                try {
+                    con.conexion.close();
+                } catch (SQLException ex) {
+                    System.err.println("Error al cerrar conexión: " + ex.getMessage());
+                }
+            }
+        }
+        return usuario;
+    }
+
 }

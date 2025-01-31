@@ -6,13 +6,12 @@ package com.irissoft.repositorio;
 
 import java.util.List;
 
-/**
- *
- * @author KALI
- */
 public interface RpUsuarios<Dt> {
+
     int insert(Dt dt);
+
     List<Dt> getAll();
+
     boolean delete(String idUsuario);
 
     boolean update(Dt dt);
@@ -20,4 +19,6 @@ public interface RpUsuarios<Dt> {
     Dt getUsuarioPorId(int idUsuario);
 
     List<Dt> buscarUsuarios(String searchTerm);
+
+    Dt autenticarUsuario(String identificador, String contrasena);
 }

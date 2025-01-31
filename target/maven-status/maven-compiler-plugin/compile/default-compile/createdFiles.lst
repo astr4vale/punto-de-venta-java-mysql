@@ -14,7 +14,6 @@ com\irissoft\capaPresentacion\MdiPrincipal$3.class
 com\irissoft\capaPresentacion\MdiPrincipal$26.class
 com\irissoft\capaPresentacion\FrmAddProducto$2.class
 com\irissoft\capaPresentacion\MdiPrincipal$6.class
-com\irissoft\capaPresentacion\MdiPrincipal$29.class
 com\irissoft\datos\DtProveedores.class
 com\irissoft\capaPresentacion\Login.class
 com\irissoft\capaPresentacion\FrmFactura$1.class
@@ -49,7 +48,11 @@ com\irissoft\capaPresentacion\FrmAddProducto.class
 com\irissoft\capaPresentacion\MdiPrincipal$2.class
 com\irissoft\capaAccesoDatos\ConexionBD.class
 com\irissoft\capaPresentacion\MdiPrincipal$11.class
+com\irissoft\datos\DtClientes.class
 com\irissoft\repositorio\RpProductos.class
+com\irissoft\datos\DtCarrito.class
+com\irissoft\datos\DtDetalleVenta.class
+com\irissoft\datos\DtDashboard.class
 com\irissoft\capaPresentacion\MdiPrincipal.class
 com\irissoft\capaPresentacion\MdiPrincipal$14.class
 com\irissoft\capaPresentacion\MdiPrincipal$25.class
@@ -70,3 +73,4 @@ com\irissoft\capaPresentacion\FrmEditarProducto.class
 com\irissoft\capaPresentacion\MdiPrincipal$19.class
 com\irissoft\capaNegocios\NgProveedores.class
 com\irissoft\capaPresentacion\MdiPrincipal$24.class
+com\irissoft\capaAccesoDatos\QDashboard.class

@@ -4,59 +4,24 @@
  */
 package com.irissoft.capaAccesoDatos;
 
-import com.irissoft.datos.DtProductos;
 import com.irissoft.datos.DtProveedores;
 import com.irissoft.datos.DtVentas;
-import com.irissoft.repositorio.RpProductos;
 import com.irissoft.repositorio.RpVentas;
+import java.sql.CallableStatement;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- *
- * @author KALI
- */
+
 public class QVentas implements RpVentas<DtVentas> {
 
     private ConexionBD con;
-
-    @Override
-    public int insert(DtVentas dt) {
-        con = new ConexionBD();
-        String sql = "INSERT INTO productos (nombreProducto, descripcion, cantidad, precio, idProveedor, sku, talla, color) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = con.conexion.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, dt.getNombreProducto());
-            ps.setString(2, dt.getDescripcion());
-            ps.setInt(3, dt.getCantidad());
-            ps.setDouble(4, dt.getPrecio());
-            ps.setInt(5, dt.getIdProveedor());
-            ps.setString(6, dt.getSku());    // Nuevo campo
-            ps.setString(7, dt.getTalla());  // Nuevo campo
-            ps.setString(8, dt.getColor());  // Nuevo campo
-
-            int rowsAffected = ps.executeUpdate();
-            return rowsAffected;
-        } catch (SQLException ex) {
-            Logger.getLogger(QProductos.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                if (con.conexion != null) {
-                    con.conexion.close();
-                }
-            } catch (SQLException ex) {
-                System.err.println("Error al cerrar conexión: " + ex.getMessage());
-            }
-        }
-        return 0;
-    }
-
+    
     @Override
     public List<DtVentas> getAll() {
         con = new ConexionBD();
@@ -98,59 +63,6 @@ public class QVentas implements RpVentas<DtVentas> {
         return productos;
     }
 
-    @Override
-    public boolean delete(int idProducto) {
-        con = new ConexionBD();
-        String sql = "DELETE FROM productos WHERE idProducto = ?";
-        try (PreparedStatement ps = con.conexion.prepareStatement(sql)) {
-            ps.setInt(1, idProducto);
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Error al eliminar producto: " + e.getMessage());
-            return false;
-        } finally {
-            try {
-                if (con.conexion != null) {
-                    con.conexion.close();
-                }
-            } catch (SQLException ex) {
-                System.err.println("Error al cerrar conexión: " + ex.getMessage());
-            }
-        }
-    }
-
-    @Override
-    public boolean update(DtVentas dt) {
-        con = new ConexionBD();
-        // Consulta SQL actualizada con los nuevos campos
-        String sql = "UPDATE productos SET nombreProducto=?, descripcion=?, cantidad=?, precio=?, idProveedor=?, sku=?, talla=?, color=? WHERE idProducto=?";
-
-        try (PreparedStatement ps = con.conexion.prepareStatement(sql)) {
-            // Parámetros en el orden correcto
-            ps.setString(1, dt.getNombreProducto());
-            ps.setString(2, dt.getDescripcion());
-            ps.setInt(3, dt.getCantidad());
-            ps.setDouble(4, dt.getPrecio());
-            ps.setInt(5, dt.getIdProveedor());
-            ps.setString(6, dt.getSku());
-            ps.setString(7, dt.getTalla());
-            ps.setString(8, dt.getColor());
-            ps.setInt(9, dt.getIdProducto()); // WHERE clause
-
-            return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            System.err.println("Error al actualizar producto: " + e.getMessage());
-            return false;
-        } finally {
-            try {
-                if (con.conexion != null) {
-                    con.conexion.close();
-                }
-            } catch (SQLException ex) {
-                System.err.println("Error al cerrar conexión: " + ex.getMessage());
-            }
-        }
-    }
 
     @Override
     public DtVentas getProductoById(int idProducto) {
@@ -265,6 +177,28 @@ public class QVentas implements RpVentas<DtVentas> {
             } catch (SQLException ex) {
                 System.err.println("Error al cerrar conexión: " + ex.getMessage());
             }
+        }
+    }
+
+    @Override
+    public boolean realizarVenta(int idUsuario, String dniRucCliente, String nombreCliente, String telefonoCliente, String direccionCliente, String productosJSON) {
+        con = new ConexionBD(); // Crear conexión
+        String sql = "{CALL RealizarVenta(?, ?, ?, ?, ?, ?)}";
+
+        try (Connection connection = con.conexion; CallableStatement stmt = connection.prepareCall(sql)) {
+
+            stmt.setInt(1, idUsuario);
+            stmt.setString(2, dniRucCliente);
+            stmt.setString(3, nombreCliente);
+            stmt.setString(4, telefonoCliente);
+            stmt.setString(5, direccionCliente);
+            stmt.setString(6, productosJSON);
+
+            stmt.execute(); // Ejecutar procedimiento
+            return true;
+        } catch (SQLException e) {
+            Logger.getLogger(QVentas.class.getName()).log(Level.SEVERE, "Error en realizarVenta: " + e.getMessage(), e);
+            return false;
         }
     }
 

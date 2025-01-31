@@ -63,4 +63,13 @@ public class NgUsuarios {
         return rpUsuarios.buscarUsuarios(searchTerm);
     }
 
+    public DtUsuarios iniciarSesion(String identificador, String contrasena) {
+        // Validación básica de parámetros
+        if (identificador == null || identificador.isEmpty() || contrasena == null || contrasena.isEmpty()) {
+            return null;
+        }
+
+        return rpUsuarios.autenticarUsuario(identificador, contrasena);
+    }
+
 }
