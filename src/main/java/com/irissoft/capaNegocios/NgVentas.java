@@ -5,12 +5,9 @@
 package com.irissoft.capaNegocios;
 
 import com.irissoft.capaAccesoDatos.QVentas;
-import com.irissoft.datos.DtDetalleVenta;
 import com.irissoft.datos.DtVentas;
 import com.irissoft.repositorio.RpVentas;
 import java.util.List;
-import org.json.JSONArray;
-import org.json.JSONObject;
 
 /**
  *

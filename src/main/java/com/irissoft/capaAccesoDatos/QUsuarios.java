@@ -1,7 +1,4 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package com.irissoft.capaAccesoDatos;
 
 import com.irissoft.datos.DtUsuarios;
@@ -12,10 +9,7 @@ import com.irissoft.repositorio.RpUsuarios;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 
-/**
- *
- * @author KALI
- */
+
 public class QUsuarios implements RpUsuarios<DtUsuarios> {
 
     private ConexionBD con;

@@ -1,14 +1,18 @@
 package com.irissoft.capaPresentacion;
 
 import com.irissoft.capaAccesoDatos.QDashboard;
+import com.irissoft.capaNegocios.NgConfiguracion;
 import com.irissoft.capaNegocios.NgProductos;
 import com.irissoft.capaNegocios.NgProveedores;
+import com.irissoft.capaNegocios.NgReportes;
 import com.irissoft.capaNegocios.NgUsuarios;
 import com.irissoft.capaNegocios.NgVentas;
 import com.irissoft.datos.DtCarrito;
 import com.irissoft.datos.DtClientes;
+import com.irissoft.datos.DtConfiguracion;
 import com.irissoft.datos.DtDashboard;
 import com.irissoft.datos.DtProductos;
+import com.irissoft.datos.DtReportes;
 import com.irissoft.datos.DtUsuarios;
 import com.irissoft.datos.DtVentas;
 import java.awt.Color;
@@ -22,6 +26,38 @@ import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.Paragraph;
+import com.itextpdf.text.pdf.PdfWriter;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.FontFactory;
+import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.Image;
+import java.awt.HeadlessException;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
+import org.apache.poi.xssf.usermodel.XSSFFont;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 
 /**
@@ -34,15 +70,18 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private final DefaultTableModel dtmUsuarios = new DefaultTableModel();
     private final DefaultTableModel dtmProductos = new DefaultTableModel();
     private final DefaultTableModel dtmVentas = new DefaultTableModel();
+    private final DefaultTableModel dtmReportes = new DefaultTableModel();
     private DefaultListModel<DtCarrito> modelCarrito;
     private double totalPagar = 0.0;
-    
+   
     // Capas de negocio
     private final NgUsuarios ngUsuarios = new NgUsuarios();
     private final NgProductos ngProductos = new NgProductos();
     private final NgVentas ngVentas = new NgVentas();
     private final NgProveedores ngProveedores = new NgProveedores();
-    
+    private final NgReportes ngReportes = new NgReportes();
+    private NgConfiguracion ngConfiguracion = new NgConfiguracion();
+
     // Datos de la aplicación
     private DtUsuarios usuarioActual = new DtUsuarios();
     private QDashboard qDashboard = new QDashboard();
@@ -54,7 +93,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         cargarDatosIniciales();
         iniciarActualizacionDashboard();
     }
- 
+
     private void inicializarComponentes() {
         configurarPaneles();
         configurarTablas();
@@ -66,13 +105,13 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         modelCarrito = new DefaultListModel<>();
         ListaProductosVender.setModel(modelCarrito);
     }
-    
+
     private void iniciarActualizacionDashboard() {
         Timer timer = new Timer(2000, (e) -> actualizarDatosDashboard());
         timer.start();
     }
-    
-        // Métodos de configuración inicial
+
+    // Métodos de configuración inicial
     private void configurarPaneles() {
         dashboardPanel.setVisible(true);
         configuracionPanel.setVisible(false);
@@ -86,6 +125,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         configurarTablaUsuarios();
         configurarTablaProductos();
         configurarTablaVentas();
+        configurarTablaReportes();
     }
 
     private void configurarTablaUsuarios() {
@@ -127,11 +167,65 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         tablaVentas.getColumnModel().getColumn(0).setMaxWidth(0);
     }
 
+    private void configurarTablaReportes() {
+        dtmReportes.addColumn("Usuario");
+        dtmReportes.addColumn("Cliente");
+        dtmReportes.addColumn("DNI/RUC");
+        dtmReportes.addColumn("Total");
+        dtmReportes.addColumn("Fecha");
+        dtmReportes.addColumn("Items Vendidos");
+        dtmReportes.addColumn("Categoría Cliente");
+
+        tablaReportes.setModel(dtmReportes);
+        tablaReportes.getColumnModel().getColumn(0).setMaxWidth(150);
+        tablaReportes.getColumnModel().getColumn(1).setMaxWidth(150);
+        tablaReportes.getColumnModel().getColumn(2).setMaxWidth(100);
+        tablaReportes.getColumnModel().getColumn(3).setMaxWidth(100);
+        tablaReportes.getColumnModel().getColumn(4).setMaxWidth(100);
+        tablaReportes.getColumnModel().getColumn(5).setMaxWidth(120);
+        tablaReportes.getColumnModel().getColumn(6).setMaxWidth(150);
+    }
+
+    private void cargarDatosReportes() {
+        dtmReportes.setRowCount(0);
+        List<DtReportes> ventas = ngReportes.obtenerVentas();
+        for (DtReportes reporte : ventas) {
+            dtmReportes.addRow(new Object[]{
+                reporte.getUsuario(),
+                reporte.getCliente(),
+                reporte.getDniRuc(),
+                reporte.getTotal(),
+                reporte.getFecha(),
+                reporte.getItemsVendidos(),
+                reporte.getCategoriaCliente()
+            });
+        }
+    }
+
+    private void cargarConfiguracion() {
+        try {
+            DtConfiguracion config = ngConfiguracion.obtenerConfiguracion();
+            if (config != null) {
+                txtNombreTienda.setText(config.getNombreTienda());
+                txtRucTienda.setText(config.getRuc());
+                txtDireccionTienda.setText(config.getDireccion());
+                txtTelefonoTienda.setText(config.getTelefono());
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error al cargar configuración: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
     // Métodos de datos iniciales
     private void cargarDatosIniciales() {
         cargarUsuariosIniciales();
         cargarProductosIniciales();
         cargarVentasIniciales();
+        cargarDatosReportes();
+        cargarConfiguracion();
     }
 
     private void cargarUsuariosIniciales() {
@@ -227,6 +321,207 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         lblProductos.setText(formatoNumero.format(datos.getTotalProductos()));
     }
 
+    private List<DtCarrito> convertirModelCarritoALista() {
+        List<DtCarrito> carrito = new ArrayList<>();
+        for (int i = 0; i < modelCarrito.size(); i++) {
+            carrito.add(modelCarrito.getElementAt(i));
+        }
+        return carrito;
+    }
+
+    public void generarReporteExcel() {
+        try {
+            // Crear el archivo Excel
+            XSSFWorkbook workbook = new XSSFWorkbook();
+            XSSFSheet sheet = workbook.createSheet("Reporte de Ventas");
+
+            // Crear el estilo para el encabezado mejorado
+            XSSFCellStyle headerStyle = workbook.createCellStyle();
+// Configurar fondo y patrón
+            headerStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte) 200, (byte) 220, (byte) 255}, workbook.getStylesSource().getIndexedColors()));
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            // Configurar bordes más profesionales
+            headerStyle.setBorderBottom(BorderStyle.MEDIUM);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+
+            // Mejorar la fuente del encabezado
+            XSSFFont fontHeader = workbook.createFont();
+            fontHeader.setFontName("Calibri");
+            fontHeader.setFontHeightInPoints((short) 12);
+            fontHeader.setBold(true);
+            headerStyle.setFont(fontHeader);
+
+            // Alinear texto al centro
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // Crear el estilo para los datos con mejor formato
+            XSSFCellStyle dataStyle = workbook.createCellStyle();
+            dataStyle.setBorderBottom(BorderStyle.THIN);
+            dataStyle.setBorderTop(BorderStyle.THIN);
+            dataStyle.setBorderLeft(BorderStyle.THIN);
+            dataStyle.setBorderRight(BorderStyle.THIN);
+            dataStyle.setAlignment(HorizontalAlignment.LEFT);
+
+            // Crear el encabezado
+            String[] columnas = {"Usuario", "Cliente", "DNI/RUC", "Total", "Fecha", "Items Vendidos", "Categoría Cliente"};
+
+            // Crear fila de encabezado con altura personalizada
+            XSSFRow headerRow = sheet.createRow(0);
+            headerRow.setHeightInPoints(30); // Altura mayor para encabezados
+
+            for (int i = 0; i < columnas.length; i++) {
+                Cell celda = headerRow.createCell(i);
+                celda.setCellValue(columnas[i]);
+                celda.setCellStyle(headerStyle);
+
+                // Ajustar ancho de columna considerando contenido
+                int width = columnas[i].length() * 256 + 512; // Fórmula optimizada
+                sheet.setColumnWidth(i, width);
+
+                // Ajustar altura de columna para datos
+                sheet.setDefaultRowHeightInPoints(15);
+            }
+
+            // Obtener los datos de la tabla
+            DefaultTableModel model = (DefaultTableModel) tablaReportes.getModel();
+            for (int i = 0; i < model.getRowCount(); i++) {
+                XSSFRow fila = sheet.createRow(i + 1);
+                for (int j = 0; j < model.getColumnCount(); j++) {
+                    Cell celda = fila.createCell(j);
+                    celda.setCellValue(model.getValueAt(i, j).toString());
+                    celda.setCellStyle(dataStyle);
+                }
+            }
+
+            // Guardar el archivo
+            String rutaArchivo = "reporte_ventas_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".xlsx";
+
+            try (FileOutputStream out = new FileOutputStream(rutaArchivo)) {
+                workbook.write(out);
+            }
+
+            // Mostrar mensaje de éxito
+            JOptionPane.showMessageDialog(this,
+                    "Reporte exportado exitosamente: " + rutaArchivo,
+                    "Éxito",
+                    JOptionPane.INFORMATION_MESSAGE);
+
+        } catch (HeadlessException | IOException e) {
+            // Mostrar mensaje de error
+            JOptionPane.showMessageDialog(this,
+                    "Error al exportar el reporte: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+
+
+    public void generarBoletaPDF(DtUsuarios usuario, DtClientes cliente, List<DtCarrito> carrito, double totalPagar) {
+        Document document = new Document();
+        try {
+            String rutaPDF = "boleta_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".pdf";
+            PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(rutaPDF));
+            document.open();
+
+            // Obtener configuración de la tienda
+            DtConfiguracion config = ngConfiguracion.obtenerConfiguracion();
+
+            // Fuentes personalizadas
+            Font tituloFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BaseColor.DARK_GRAY);
+            Font subtituloFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLACK);
+            Font textoFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
+            Font totalFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, BaseColor.RED);
+
+            // Encabezado de la tienda
+            Paragraph tituloTienda = new Paragraph(config.getNombreTienda(), tituloFont);
+            tituloTienda.setAlignment(Paragraph.ALIGN_CENTER);
+            document.add(tituloTienda);
+
+            // Información de la tienda
+            Paragraph infoTienda = new Paragraph(
+                    "RUC: " + config.getRuc() + "\n"
+                    + "Dirección: " + config.getDireccion() + "\n"
+                    + "Teléfono: " + config.getTelefono(),
+                    textoFont);
+            infoTienda.setAlignment(Paragraph.ALIGN_CENTER);
+            document.add(infoTienda);
+
+            // Agregar logo si existe
+            try {
+                Image logo = Image.getInstance("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos/LogoTienda.png");
+                logo.scaleToFit(100, 100);
+                logo.setAlignment(Image.ALIGN_CENTER);
+                document.add(logo);
+            } catch (DocumentException | IOException e) {
+                // Si no hay logo, continuar sin él
+            }
+
+            // Título de la boleta
+            Paragraph titulo = new Paragraph("BOLETA DE VENTA", tituloFont);
+            titulo.setAlignment(Paragraph.ALIGN_CENTER);
+            document.add(titulo);
+
+            // Información del vendedor
+            document.add(new Paragraph("Vendedor: " + usuario.getNombreUsuario(), subtituloFont));
+            document.add(new Paragraph("Rol: " + usuario.getRol(), textoFont));
+            document.add(new Paragraph("\n"));
+
+            // Información del cliente
+            document.add(new Paragraph("Cliente: " + cliente.getNombre(), subtituloFont));
+            document.add(new Paragraph("DNI/RUC: " + cliente.getDniRuc(), textoFont));
+            document.add(new Paragraph("Teléfono: " + cliente.getTelefono(), textoFont));
+            document.add(new Paragraph("Dirección: " + cliente.getDireccion(), textoFont));
+            document.add(new Paragraph("\n"));
+
+            // Tabla de detalles de la compra
+            PdfPTable tabla = new PdfPTable(4);
+            tabla.setWidthPercentage(100);
+
+            PdfPCell celdaProducto = new PdfPCell(new Paragraph("Producto", textoFont));
+            PdfPCell celdaCantidad = new PdfPCell(new Paragraph("Cantidad", textoFont));
+            PdfPCell celdaPrecio = new PdfPCell(new Paragraph("Precio Unitario", textoFont));
+            PdfPCell celdaSubtotal = new PdfPCell(new Paragraph("Subtotal", textoFont));
+
+            celdaProducto.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            celdaCantidad.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            celdaPrecio.setBackgroundColor(BaseColor.LIGHT_GRAY);
+            celdaSubtotal.setBackgroundColor(BaseColor.LIGHT_GRAY);
+
+            tabla.addCell(celdaProducto);
+            tabla.addCell(celdaCantidad);
+            tabla.addCell(celdaPrecio);
+            tabla.addCell(celdaSubtotal);
+
+            for (DtCarrito item : carrito) {
+                tabla.addCell(new Paragraph(item.getNombre(), textoFont));
+                tabla.addCell(new Paragraph(String.valueOf(item.getCantidad()), textoFont));
+                tabla.addCell(new Paragraph("S/. " + item.getPrecio(), textoFont));
+                tabla.addCell(new Paragraph("S/. " + (item.getCantidad() * item.getPrecio()), textoFont));
+            }
+
+            document.add(tabla);
+
+            // Total a pagar
+            Paragraph total = new Paragraph("Total a pagar: S/. " + Math.round(totalPagar), totalFont);
+            total.setAlignment(Paragraph.ALIGN_RIGHT);
+            document.add(total);
+
+            // Pie de página
+            Paragraph piePagina = new Paragraph("Gracias por su compra", textoFont);
+            piePagina.setAlignment(Paragraph.ALIGN_CENTER);
+            document.add(piePagina);
+
+            document.close();
+            JOptionPane.showMessageDialog(this, "Boleta generada exitosamente: " + rutaPDF, "Éxito", JOptionPane.INFORMATION_MESSAGE);
+        } catch (DocumentException | IOException e) {
+            JOptionPane.showMessageDialog(this, "Error al generar la boleta: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 
     // Métodos del carrito de compras
     private void productoSeleccionado() {
@@ -287,12 +582,14 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         );
 
         if (ventaExitosa) {
+            generarBoletaPDF(usuarioActual, cliente, convertirModelCarritoALista(), totalPagar);
             JOptionPane.showMessageDialog(this, "Venta registrada exitosamente", "Éxito", JOptionPane.INFORMATION_MESSAGE);
             modelCarrito.clear();
             totalPagar = 0.0;
             lblTotal.setText("S/. 0.00");
             actualizarTablaProductos();
             actualizarTablaVentas();
+            cargarDatosReportes();
         } else {
             JOptionPane.showMessageDialog(this, "Error al procesar la venta", "Error", JOptionPane.ERROR_MESSAGE);
         }
@@ -538,28 +835,25 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         reportesPanel = new javax.swing.JPanel();
         jPanel32 = new javax.swing.JPanel();
         jScrollPane6 = new javax.swing.JScrollPane();
-        jTable5 = new javax.swing.JTable();
+        tablaReportes = new javax.swing.JTable();
         jPanel38 = new javax.swing.JPanel();
-        jLabel45 = new javax.swing.JLabel();
-        jLabel56 = new javax.swing.JLabel();
         jPanel39 = new javax.swing.JPanel();
         jLabel59 = new javax.swing.JLabel();
         jPanel40 = new javax.swing.JPanel();
         jButton4 = new javax.swing.JButton();
         jLabel58 = new javax.swing.JLabel();
-        jButton5 = new javax.swing.JButton();
+        btnExportarVentas = new javax.swing.JButton();
         configuracionPanel = new javax.swing.JPanel();
         jPanel33 = new javax.swing.JPanel();
         jLabel50 = new javax.swing.JLabel();
         jLabel52 = new javax.swing.JLabel();
         jLabel57 = new javax.swing.JLabel();
         jLabel60 = new javax.swing.JLabel();
-        jTextField3 = new javax.swing.JTextField();
-        jTextField5 = new javax.swing.JTextField();
-        jTextField7 = new javax.swing.JTextField();
-        jTextField8 = new javax.swing.JTextField();
-        jButton1 = new javax.swing.JButton();
-        jButton2 = new javax.swing.JButton();
+        txtNombreTienda = new javax.swing.JTextField();
+        txtRucTienda = new javax.swing.JTextField();
+        txtDireccionTienda = new javax.swing.JTextField();
+        txtTelefonoTienda = new javax.swing.JTextField();
+        btnGuardarConfiguracion = new javax.swing.JButton();
         jPanel41 = new javax.swing.JPanel();
         jLabel39 = new javax.swing.JLabel();
         jPanel42 = new javax.swing.JPanel();
@@ -1835,7 +2129,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
         reportesPanel.setBackground(new java.awt.Color(243, 244, 246));
 
-        jTable5.setModel(new javax.swing.table.DefaultTableModel(
+        tablaReportes.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
                 {null, null, null, null},
                 {null, null, null, null},
@@ -1846,7 +2140,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 "Title 1", "Title 2", "Title 3", "Title 4"
             }
         ));
-        jScrollPane6.setViewportView(jTable5);
+        jScrollPane6.setViewportView(tablaReportes);
 
         javax.swing.GroupLayout jPanel32Layout = new javax.swing.GroupLayout(jPanel32);
         jPanel32.setLayout(jPanel32Layout);
@@ -1862,14 +2156,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jPanel38.setBackground(new java.awt.Color(243, 244, 246));
         jPanel38.setForeground(new java.awt.Color(0, 0, 0));
         jPanel38.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
-
-        jLabel45.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\EDITAR.png")); // NOI18N
-        jLabel45.setText("Editar");
-        jPanel38.add(jLabel45, new org.netbeans.lib.awtextra.AbsoluteConstraints(190, 20, -1, -1));
-
-        jLabel56.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\ELIMINAR.png")); // NOI18N
-        jLabel56.setText("Eliminar");
-        jPanel38.add(jLabel56, new org.netbeans.lib.awtextra.AbsoluteConstraints(500, 20, -1, -1));
 
         jPanel39.setBackground(new java.awt.Color(243, 244, 246));
 
@@ -1913,12 +2199,17 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jLabel58.setText("Reportes");
         jPanel40.add(jLabel58, new org.netbeans.lib.awtextra.AbsoluteConstraints(6, 3, 270, -1));
 
-        jButton5.setBackground(new java.awt.Color(59, 130, 246));
-        jButton5.setForeground(new java.awt.Color(255, 255, 255));
-        jButton5.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\DESCARGAR.png")); // NOI18N
-        jButton5.setText("Exportar");
-        jButton5.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
-        jPanel40.add(jButton5, new org.netbeans.lib.awtextra.AbsoluteConstraints(585, 0, 188, -1));
+        btnExportarVentas.setBackground(new java.awt.Color(59, 130, 246));
+        btnExportarVentas.setForeground(new java.awt.Color(255, 255, 255));
+        btnExportarVentas.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\DESCARGAR.png")); // NOI18N
+        btnExportarVentas.setText("Exportar");
+        btnExportarVentas.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
+        btnExportarVentas.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnExportarVentasActionPerformed(evt);
+            }
+        });
+        jPanel40.add(btnExportarVentas, new org.netbeans.lib.awtextra.AbsoluteConstraints(585, 0, 188, -1));
 
         javax.swing.GroupLayout reportesPanelLayout = new javax.swing.GroupLayout(reportesPanel);
         reportesPanel.setLayout(reportesPanelLayout);
@@ -1961,9 +2252,12 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
         jLabel60.setText("Teléfono");
 
-        jButton1.setText("Guardar");
-
-        jButton2.setText("Editar");
+        btnGuardarConfiguracion.setText("Guardar");
+        btnGuardarConfiguracion.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnGuardarConfiguracionActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout jPanel33Layout = new javax.swing.GroupLayout(jPanel33);
         jPanel33.setLayout(jPanel33Layout);
@@ -1973,24 +2267,23 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(jPanel33Layout.createSequentialGroup()
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jTextField5, javax.swing.GroupLayout.PREFERRED_SIZE, 251, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(txtRucTienda, javax.swing.GroupLayout.PREFERRED_SIZE, 251, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel33Layout.createSequentialGroup()
                         .addGap(76, 76, 76)
                         .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                             .addComponent(jLabel50)
                             .addComponent(jLabel57)
-                            .addComponent(jTextField3)
-                            .addComponent(jTextField7, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE)
-                            .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                            .addComponent(txtNombreTienda)
+                            .addComponent(txtDireccionTienda, javax.swing.GroupLayout.DEFAULT_SIZE, 250, Short.MAX_VALUE))
                         .addGap(130, 130, 130)
                         .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jTextField8, javax.swing.GroupLayout.DEFAULT_SIZE, 251, Short.MAX_VALUE)
+                            .addComponent(txtTelefonoTienda, javax.swing.GroupLayout.DEFAULT_SIZE, 251, Short.MAX_VALUE)
                             .addGroup(jPanel33Layout.createSequentialGroup()
                                 .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                                     .addComponent(jLabel52)
                                     .addComponent(jLabel60))
                                 .addGap(0, 0, Short.MAX_VALUE))
-                            .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                            .addComponent(btnGuardarConfiguracion, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
                 .addGap(66, 66, 66))
         );
         jPanel33Layout.setVerticalGroup(
@@ -2002,20 +2295,18 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                     .addComponent(jLabel52))
                 .addGap(18, 18, 18)
                 .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(jTextField3, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
-                    .addComponent(jTextField5))
+                    .addComponent(txtNombreTienda, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                    .addComponent(txtRucTienda))
                 .addGap(52, 52, 52)
                 .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel57)
                     .addComponent(jLabel60))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jTextField7, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jTextField8, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(txtDireccionTienda, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(txtTelefonoTienda, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(85, 85, 85)
-                .addGroup(jPanel33Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(jButton1)
-                    .addComponent(jButton2))
+                .addComponent(btnGuardarConfiguracion)
                 .addContainerGap(88, Short.MAX_VALUE))
         );
 
@@ -2477,6 +2768,33 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         eliminarProducto();
     }//GEN-LAST:event_btnQuitarProductoDeListaMouseClicked
 
+    private void btnExportarVentasActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnExportarVentasActionPerformed
+        generarReporteExcel();
+    }//GEN-LAST:event_btnExportarVentasActionPerformed
+
+    private void btnGuardarConfiguracionActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnGuardarConfiguracionActionPerformed
+        try {
+            // Obtener los datos de los componentes de la interfaz
+            String nombreTienda = txtNombreTienda.getText();
+            String ruc = txtRucTienda.getText();
+            String direccion = txtDireccionTienda.getText();
+            String telefono = txtTelefonoTienda.getText();
+
+            // Instanciar la clase de negocio
+            NgConfiguracion ngConfiguracion = new NgConfiguracion();
+
+            // Llamar al método de negocio para guardar la configuración
+            ngConfiguracion.actualizarConfiguracion(nombreTienda, ruc, direccion, telefono);
+
+        } catch (Exception e) {
+            // Mostrar mensaje de error al usuario
+            JOptionPane.showMessageDialog(this,
+                    "Error al guardar la configuración: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_btnGuardarConfiguracionActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JList<DtCarrito> ListaProductosVender;
@@ -2497,16 +2815,15 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel btnEditarUsuario;
     private javax.swing.JLabel btnEliminarProducto;
     private javax.swing.JLabel btnEliminarUsuario;
+    private javax.swing.JButton btnExportarVentas;
+    private javax.swing.JButton btnGuardarConfiguracion;
     private javax.swing.JLabel btnPagarCompra;
     private javax.swing.JLabel btnQuitarProductoDeLista;
     private javax.swing.JPanel configuracionPanel;
     private javax.swing.JPanel dashboardPanel;
     private javax.swing.JDesktopPane desktopPane;
-    private javax.swing.JButton jButton1;
-    private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
     private javax.swing.JButton jButton4;
-    private javax.swing.JButton jButton5;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel11;
     private javax.swing.JLabel jLabel12;
@@ -2529,7 +2846,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel39;
     private javax.swing.JLabel jLabel4;
     private javax.swing.JLabel jLabel44;
-    private javax.swing.JLabel jLabel45;
     private javax.swing.JLabel jLabel46;
     private javax.swing.JLabel jLabel47;
     private javax.swing.JLabel jLabel50;
@@ -2537,7 +2853,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel52;
     private javax.swing.JLabel jLabel54;
     private javax.swing.JLabel jLabel55;
-    private javax.swing.JLabel jLabel56;
     private javax.swing.JLabel jLabel57;
     private javax.swing.JLabel jLabel58;
     private javax.swing.JLabel jLabel59;
@@ -2590,11 +2905,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JScrollPane jScrollPane6;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
-    private javax.swing.JTable jTable5;
-    private javax.swing.JTextField jTextField3;
-    private javax.swing.JTextField jTextField5;
-    private javax.swing.JTextField jTextField7;
-    private javax.swing.JTextField jTextField8;
     private javax.swing.JLabel lblCerrarSesion;
     private javax.swing.JLabel lblClientes;
     private javax.swing.JLabel lblConfiguracion;
@@ -2625,12 +2935,17 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JPanel puntoDeVentaPanel;
     private javax.swing.JPanel reportesPanel;
     private javax.swing.JTable tablaProductos;
+    private javax.swing.JTable tablaReportes;
     private javax.swing.JTable tablaUsuarios;
     private javax.swing.JTable tablaVentas;
     private javax.swing.JTextField txtBuscadorProductos;
     private javax.swing.JTextField txtBuscadorUsuarios;
     private javax.swing.JTextField txtBuscadorVentas;
     private javax.swing.JTextField txtCantidadProducto;
+    private javax.swing.JTextField txtDireccionTienda;
+    private javax.swing.JTextField txtNombreTienda;
+    private javax.swing.JTextField txtRucTienda;
+    private javax.swing.JTextField txtTelefonoTienda;
     private javax.swing.JPanel usuariosPanel;
     // End of variables declaration//GEN-END:variables
 

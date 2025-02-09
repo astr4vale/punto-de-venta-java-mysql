@@ -201,5 +201,7 @@ public class QVentas implements RpVentas<DtVentas> {
             return false;
         }
     }
+    
+    
 
 }

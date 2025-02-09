@@ -1,16 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
-
 package com.irissoft.app;
 
 import com.irissoft.capaPresentacion.Login;
 import com.irissoft.capaPresentacion.MdiPrincipal;
 
-/**
- *
- * @author KALI
- */
 public class Main {
 
     public static void main(String[] args) {
