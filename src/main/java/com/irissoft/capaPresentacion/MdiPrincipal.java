@@ -330,7 +330,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 StringBuilder texto = new StringBuilder();
                 texto.append("<html><body>");
                 texto.append("<div style='font-weight:bold; color:#333;'>").append(producto.getNombre()).append("</div>");
-                texto.append("<div style='color:#666; margin-top:4px;'>$ ").append(producto.getPrecio()).append("</div>");
+                texto.append("<div style='color:#666; margin-top:4px;'>S/. ").append(producto.getPrecio()).append("</div>");
                 texto.append("<div style='color:#999; font-size:85%; margin-top:2px;'>Cantidad: ").append(producto.getCantidad()).append("</div>");
                 texto.append("</body></div>");
 
@@ -529,6 +529,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
     public void generarBoletaPDF(DtUsuarios usuario, DtClientes cliente, List<DtCarrito> carrito, double totalPagar) {
         Document document = new Document(PageSize.A4);
+        @SuppressWarnings("UnusedAssignment")
         String rutaPDF = null;
         int numeroBoleta = 0;
 
@@ -560,7 +561,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
             // Agregar logo
             try {
-                Image logo = Image.getInstance("ruta/del/logo.png");
+                Image logo = Image.getInstance("");
                 logo.scaleToFit(100, 50);
                 Paragraph logoP = new Paragraph();
                 logoP.add(new Chunk(logo, 0, 0));

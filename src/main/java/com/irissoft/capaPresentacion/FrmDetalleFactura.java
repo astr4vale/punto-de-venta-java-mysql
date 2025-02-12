@@ -97,7 +97,7 @@ public class FrmDetalleFactura extends javax.swing.JInternalFrame {
         jPanel2.setBackground(new java.awt.Color(255, 255, 255));
         jPanel2.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
-        jLabel2.setText("Dni/Ruc");
+        jLabel2.setText("Dni");
         jPanel2.add(jLabel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 40, -1, -1));
         jPanel2.add(txtDniRucCliente, new org.netbeans.lib.awtextra.AbsoluteConstraints(20, 60, 320, 30));
 
