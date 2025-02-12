@@ -15,6 +15,7 @@ import com.irissoft.datos.DtProductos;
 import com.irissoft.datos.DtReportes;
 import com.irissoft.datos.DtUsuarios;
 import com.irissoft.datos.DtVentas;
+import com.itextpdf.text.BadElementException;
 import java.awt.Color;
 import java.text.DecimalFormat;
 import java.util.List;
@@ -38,20 +39,30 @@ import java.util.Date;
 import com.itextpdf.text.Font;
 import com.itextpdf.text.FontFactory;
 import com.itextpdf.text.BaseColor;
+import com.itextpdf.text.Chunk;
+import com.itextpdf.text.Element;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.Image;
+import com.itextpdf.text.PageSize;
+import com.itextpdf.text.Rectangle;
+import java.awt.Component;
+import java.awt.Desktop;
 import java.awt.HeadlessException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.text.ParseException;
+import java.util.Calendar;
+import java.util.Properties;
+import javax.swing.BorderFactory;
+import javax.swing.DefaultListCellRenderer;
+import javax.swing.JList;
+import javax.swing.border.Border;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
-import org.apache.poi.ss.usermodel.IndexedColors;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFFont;
@@ -73,7 +84,9 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private final DefaultTableModel dtmReportes = new DefaultTableModel();
     private DefaultListModel<DtCarrito> modelCarrito;
     private double totalPagar = 0.0;
-   
+    private SimpleDateFormat formatoFecha = new SimpleDateFormat("yyyy-MM-dd");
+    private DefaultTableModel modeloOriginal;
+
     // Capas de negocio
     private final NgUsuarios ngUsuarios = new NgUsuarios();
     private final NgProductos ngProductos = new NgProductos();
@@ -87,6 +100,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private QDashboard qDashboard = new QDashboard();
     private DtClientes cliente;
 
+
     public MdiPrincipal() {
         initComponents();
         inicializarComponentes();
@@ -99,6 +113,9 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         configurarTablas();
         configurarBuscadores();
         inicializarCarrito();
+
+        // Agregar el nuevo renderizador
+        ListaProductosVender.setCellRenderer(new ProductoRenderer());
     }
 
     private void inicializarCarrito() {
@@ -126,6 +143,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         configurarTablaProductos();
         configurarTablaVentas();
         configurarTablaReportes();
+        modeloOriginal = (DefaultTableModel) tablaReportes.getModel();
     }
 
     private void configurarTablaUsuarios() {
@@ -292,6 +310,37 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         }));
     }
 
+    class ProductoRenderer extends DefaultListCellRenderer {
+
+        private final Border border = BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, Color.decode("#E0E0E0")),
+                BorderFactory.createEmptyBorder(5, 10, 5, 10)
+        );
+
+        @Override
+        public Component getListCellRendererComponent(JList<?> list, Object value,
+                int index, boolean isSelected, boolean cellHasFocus) {
+            super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+
+            if (value instanceof DtCarrito producto) {
+
+                setBorder(border);
+                setOpaque(true);
+
+                StringBuilder texto = new StringBuilder();
+                texto.append("<html><body>");
+                texto.append("<div style='font-weight:bold; color:#333;'>").append(producto.getNombre()).append("</div>");
+                texto.append("<div style='color:#666; margin-top:4px;'>$ ").append(producto.getPrecio()).append("</div>");
+                texto.append("<div style='color:#999; font-size:85%; margin-top:2px;'>Cantidad: ").append(producto.getCantidad()).append("</div>");
+                texto.append("</body></div>");
+
+                setText(texto.toString());
+            }
+
+            return this;
+        }
+    }
+
     // Métodos de interacción de usuario
     public void setUsuarioActual(DtUsuarios usuario) {
         usuarioActual = usuario;
@@ -307,6 +356,66 @@ public final class MdiPrincipal extends javax.swing.JFrame {
 
     public void setCliente(DtClientes cliente) {
         this.cliente = cliente;
+    }
+
+    private void filtrarVentasPorFecha() {
+        String fechaDesdeStr = txtDesde.getText().trim();
+        String fechaHastaStr = txtHasta.getText().trim();
+
+        // Si ambas fechas están vacías, mostrar todos los datos
+        if (fechaDesdeStr.isEmpty() && fechaHastaStr.isEmpty()) {
+            tablaReportes.setModel(modeloOriginal);
+            return;
+        }
+
+        // Validar que las fechas no estén vacías
+        if (fechaDesdeStr.isEmpty() || fechaHastaStr.isEmpty()) {
+            mostrarAdvertencia("Por favor, ingrese ambas fechas");
+            return;
+        }
+
+        try {
+            // Convertir strings a fechas
+            Date fechaDesde = formatoFecha.parse(fechaDesdeStr);
+            Date fechaHasta = formatoFecha.parse(fechaHastaStr);
+
+            // Validar que la fecha desde no sea posterior a la fecha hasta
+            if (fechaDesde.after(fechaHasta)) {
+                mostrarAdvertencia("La fecha inicial no puede ser posterior a la fecha final");
+                return;
+            }
+
+            // Crear un nuevo modelo para los datos filtrados
+            DefaultTableModel modeloFiltrado = new DefaultTableModel();
+
+            // Copiar las columnas al nuevo modelo
+            for (int i = 0; i < modeloOriginal.getColumnCount(); i++) {
+                modeloFiltrado.addColumn(modeloOriginal.getColumnName(i));
+            }
+
+            // Filtrar las filas por fecha
+            for (int i = 0; i < modeloOriginal.getRowCount(); i++) {
+                String fechaFilaStr = modeloOriginal.getValueAt(i, 4).toString();
+                Date fechaFila = formatoFecha.parse(fechaFilaStr);
+
+                // Comparar usando objetos Date
+                if (!fechaFila.before(fechaDesde) && !fechaFila.after(fechaHasta)) {
+                    Object[] fila = new Object[modeloOriginal.getColumnCount()];
+                    for (int j = 0; j < modeloOriginal.getColumnCount(); j++) {
+                        fila[j] = modeloOriginal.getValueAt(i, j);
+                    }
+                    modeloFiltrado.addRow(fila);
+                }
+            }
+
+            // Actualizar la tabla con los datos filtrados
+            tablaReportes.setModel(modeloFiltrado);
+
+        } catch (ParseException e) {
+            mostrarAdvertencia("Error en el formato de las fechas. Use el formato AAAA-MM-DD");
+        } catch (Exception e) {
+            mostrarAdvertencia("Error al filtrar las ventas: " + e.getMessage());
+        }
     }
 
     // Métodos del dashboard
@@ -418,110 +527,201 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         }
     }
 
-
-
     public void generarBoletaPDF(DtUsuarios usuario, DtClientes cliente, List<DtCarrito> carrito, double totalPagar) {
-        Document document = new Document();
+        Document document = new Document(PageSize.A4);
+        String rutaPDF = null;
+        int numeroBoleta = 0;
+
         try {
-            String rutaPDF = "boleta_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".pdf";
+            // Obtener el último número de boleta
+            numeroBoleta = obtenerUltimoNumeroBoleta() + 1;
+
+            rutaPDF = "boleta_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".pdf";
             PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(rutaPDF));
             document.open();
 
             // Obtener configuración de la tienda
             DtConfiguracion config = ngConfiguracion.obtenerConfiguracion();
 
-            // Fuentes personalizadas
-            Font tituloFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 18, BaseColor.DARK_GRAY);
-            Font subtituloFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLACK);
-            Font textoFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
-            Font totalFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14, BaseColor.RED);
+            // Configuración de fuentes
+            Font tituloFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16, BaseColor.BLACK);
+            Font normalFont = FontFactory.getFont(FontFactory.HELVETICA, 10, BaseColor.BLACK);
+            Font headerFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
+            Font rucFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12, BaseColor.BLACK);
 
-            // Encabezado de la tienda
-            Paragraph tituloTienda = new Paragraph(config.getNombreTienda(), tituloFont);
-            tituloTienda.setAlignment(Paragraph.ALIGN_CENTER);
-            document.add(tituloTienda);
+            // Logo y nombre de la tienda (izquierda)
+            PdfPTable headerTable = new PdfPTable(2);
+            headerTable.setWidthPercentage(100);
+            headerTable.setWidths(new float[]{2f, 1f});
 
-            // Información de la tienda
-            Paragraph infoTienda = new Paragraph(
-                    "RUC: " + config.getRuc() + "\n"
-                    + "Dirección: " + config.getDireccion() + "\n"
-                    + "Teléfono: " + config.getTelefono(),
-                    textoFont);
-            infoTienda.setAlignment(Paragraph.ALIGN_CENTER);
-            document.add(infoTienda);
+            // Columna izquierda: Logo y datos de la tienda
+            PdfPCell leftCell = new PdfPCell();
+            leftCell.setBorder(Rectangle.NO_BORDER);
 
-            // Agregar logo si existe
+            // Agregar logo
             try {
-                Image logo = Image.getInstance("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos/LogoTienda.png");
-                logo.scaleToFit(100, 100);
-                logo.setAlignment(Image.ALIGN_CENTER);
-                document.add(logo);
-            } catch (DocumentException | IOException e) {
-                // Si no hay logo, continuar sin él
+                Image logo = Image.getInstance("ruta/del/logo.png");
+                logo.scaleToFit(100, 50);
+                Paragraph logoP = new Paragraph();
+                logoP.add(new Chunk(logo, 0, 0));
+                leftCell.addElement(logoP);
+            } catch (BadElementException | IOException e) {
+                // Si no hay logo, agregar solo el nombre
+                Paragraph storeName = new Paragraph(config.getNombreTienda(), tituloFont);
+                leftCell.addElement(storeName);
             }
 
-            // Título de la boleta
-            Paragraph titulo = new Paragraph("BOLETA DE VENTA", tituloFont);
-            titulo.setAlignment(Paragraph.ALIGN_CENTER);
-            document.add(titulo);
+            // Información de la tienda desde la configuración
+            Paragraph storeInfo = new Paragraph();
+            storeInfo.add(new Chunk("De: María López \n", normalFont));
+            storeInfo.add(new Chunk("Venta de Ropa, Lencería y mas...\n", normalFont));
+            storeInfo.add(new Chunk(config.getDireccion() + "\n", normalFont));
+            storeInfo.add(new Chunk("Telf.: " + config.getTelefono() + "\n", normalFont));
+            leftCell.addElement(storeInfo);
 
-            // Información del vendedor
-            document.add(new Paragraph("Vendedor: " + usuario.getNombreUsuario(), subtituloFont));
-            document.add(new Paragraph("Rol: " + usuario.getRol(), textoFont));
-            document.add(new Paragraph("\n"));
+            // Columna derecha: RUC y número de boleta
+            PdfPCell rightCell = new PdfPCell();
+            rightCell.setBorder(Rectangle.NO_BORDER);
+            
+
+            Paragraph rucInfo = new Paragraph();
+            rucInfo.add(new Chunk("          R.U.C. " + config.getRuc() + "\n", rucFont));
+
+            PdfPTable boletaTable = new PdfPTable(1);
+            PdfPCell boletaCell = new PdfPCell(new Paragraph("BOLETA DE VENTA", headerFont));
+            boletaCell.setBackgroundColor(new BaseColor(255, 0, 255)); // Color magenta
+            boletaCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            boletaTable.addCell(boletaCell);
+
+            // Número acumulativo de boleta
+            String numeroBoletaFormato = String.format("%03d", numeroBoleta);
+            PdfPCell numeroCell = new PdfPCell(new Paragraph(numeroBoletaFormato, normalFont));
+            numeroCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            boletaTable.addCell(numeroCell);
+
+            // Fecha de emisión
+            Calendar calendar = Calendar.getInstance();
+            String fechaFormato = "FECHA: "
+                    + String.format("%02d", calendar.get(Calendar.DAY_OF_MONTH)) + "/"
+                    + String.format("%02d", calendar.get(Calendar.MONTH) + 1) + "/"
+                    + calendar.get(Calendar.YEAR);
+            PdfPCell fechaCell = new PdfPCell(new Paragraph(fechaFormato, normalFont));
+            fechaCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            boletaTable.addCell(fechaCell);
+            rightCell.addElement(rucInfo);
+            rightCell.addElement(boletaTable);
+
+
+            headerTable.addCell(leftCell);
+            headerTable.addCell(rightCell);
+            document.add(headerTable);
 
             // Información del cliente
-            document.add(new Paragraph("Cliente: " + cliente.getNombre(), subtituloFont));
-            document.add(new Paragraph("DNI/RUC: " + cliente.getDniRuc(), textoFont));
-            document.add(new Paragraph("Teléfono: " + cliente.getTelefono(), textoFont));
-            document.add(new Paragraph("Dirección: " + cliente.getDireccion(), textoFont));
-            document.add(new Paragraph("\n"));
+            Paragraph clientInfo = new Paragraph();
+            clientInfo.setSpacingBefore(10);
+            clientInfo.add(new Chunk("Señor(es): " + cliente.getNombre() + "\n", normalFont));
+            clientInfo.add(new Chunk("Dirección: " + cliente.getDireccion() + "\n", normalFont));
+            clientInfo.add(new Chunk("D.N.I.: " + cliente.getDniRuc() + "\n", normalFont));
+            document.add(clientInfo);
 
-            // Tabla de detalles de la compra
+            // Tabla de productos
             PdfPTable tabla = new PdfPTable(4);
             tabla.setWidthPercentage(100);
+            tabla.setSpacingBefore(10);
+            tabla.setHorizontalAlignment(Element.ALIGN_CENTER);
+            tabla.setWidths(new float[]{1f, 3f, 1f, 1f});
 
-            PdfPCell celdaProducto = new PdfPCell(new Paragraph("Producto", textoFont));
-            PdfPCell celdaCantidad = new PdfPCell(new Paragraph("Cantidad", textoFont));
-            PdfPCell celdaPrecio = new PdfPCell(new Paragraph("Precio Unitario", textoFont));
-            PdfPCell celdaSubtotal = new PdfPCell(new Paragraph("Subtotal", textoFont));
+            // Encabezados de la tabla
+            String[] headers = {"CANT.", "DESCRIPCION", "P.UNIT", "IMPORTE"};
+            for (String header : headers) {
+                PdfPCell cell = new PdfPCell(new Paragraph(header, headerFont));
+                cell.setBackgroundColor(new BaseColor(255, 0, 255)); // Color magenta
+                cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+                tabla.addCell(cell);
+            }
 
-            celdaProducto.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            celdaCantidad.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            celdaPrecio.setBackgroundColor(BaseColor.LIGHT_GRAY);
-            celdaSubtotal.setBackgroundColor(BaseColor.LIGHT_GRAY);
-
-            tabla.addCell(celdaProducto);
-            tabla.addCell(celdaCantidad);
-            tabla.addCell(celdaPrecio);
-            tabla.addCell(celdaSubtotal);
-
+            // Agregar productos
             for (DtCarrito item : carrito) {
-                tabla.addCell(new Paragraph(item.getNombre(), textoFont));
-                tabla.addCell(new Paragraph(String.valueOf(item.getCantidad()), textoFont));
-                tabla.addCell(new Paragraph("S/. " + item.getPrecio(), textoFont));
-                tabla.addCell(new Paragraph("S/. " + (item.getCantidad() * item.getPrecio()), textoFont));
+                tabla.addCell(new Paragraph(String.valueOf(item.getCantidad()), normalFont));
+                tabla.addCell(new Paragraph(item.getNombre(), normalFont));
+                tabla.addCell(new Paragraph(String.format("%.2f", item.getPrecio()), normalFont));
+                tabla.addCell(new Paragraph(String.format("%.2f", item.getCantidad() * item.getPrecio()), normalFont));
             }
 
             document.add(tabla);
 
-            // Total a pagar
-            Paragraph total = new Paragraph("Total a pagar: S/. " + Math.round(totalPagar), totalFont);
-            total.setAlignment(Paragraph.ALIGN_RIGHT);
-            document.add(total);
+            // Total
+            PdfPTable totalTable = new PdfPTable(4);
+            totalTable.setWidthPercentage(100);
+            totalTable.setSpacingBefore(15);
+
+            PdfPCell blankCell = new PdfPCell(new Paragraph("", headerFont));
+            blankCell.setBackgroundColor(new BaseColor(255, 255, 255));
+            blankCell.setBorder(Rectangle.NO_BORDER);
+
+            PdfPCell totalLabelCell = new PdfPCell(new Paragraph("TOTAL S/.", headerFont));
+            totalLabelCell.setBackgroundColor(new BaseColor(255, 0, 255));
+            totalLabelCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            totalLabelCell.setBorder(Rectangle.NO_BORDER);
+
+            PdfPCell totalValueCell = new PdfPCell(new Paragraph(String.format("%.2f", totalPagar), normalFont));
+            totalValueCell.setBackgroundColor(new BaseColor(255, 255, 255));
+            totalValueCell.setHorizontalAlignment(Element.ALIGN_CENTER);
+            totalValueCell.setBorder(Rectangle.NO_BORDER);
+
+            totalTable.addCell(blankCell);
+            totalTable.addCell(blankCell);
+            totalTable.addCell(totalLabelCell);
+            totalTable.addCell(totalValueCell);
+            document.add(totalTable);
 
             // Pie de página
-            Paragraph piePagina = new Paragraph("Gracias por su compra", textoFont);
-            piePagina.setAlignment(Paragraph.ALIGN_CENTER);
-            document.add(piePagina);
+            Paragraph footer = new Paragraph();
+            footer.setSpacingBefore(20);
+            footer.setAlignment(Element.ALIGN_CENTER);
+            footer.add(new Chunk("Gracias por su preferencia\n\n", normalFont));
+            footer.add(new Chunk("CANCELADO\n", normalFont));
+            footer.add(new Chunk("Abancay,...........de.............del 20.....", normalFont));
+            document.add(footer);
+
+            // Nota final
+            Paragraph note = new Paragraph("Una vez salida la mercadería no hay lugar a reclamo ni devolución", FontFactory.getFont(FontFactory.HELVETICA, 8, BaseColor.BLACK));
+            note.setAlignment(Element.ALIGN_CENTER);
+            document.add(note);
 
             document.close();
+
+            // Guardar el nuevo número de boleta
+            guardarUltimoNumeroBoleta(numeroBoleta);
+
             JOptionPane.showMessageDialog(this, "Boleta generada exitosamente: " + rutaPDF, "Éxito", JOptionPane.INFORMATION_MESSAGE);
+            Desktop.getDesktop().open(new File(rutaPDF));
         } catch (DocumentException | IOException e) {
             JOptionPane.showMessageDialog(this, "Error al generar la boleta: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+// Método para obtener el último número de boleta
+    private int obtenerUltimoNumeroBoleta() {
+        Properties config = new Properties();
+        try {
+            config.load(new FileInputStream("config.properties"));
+            return Integer.parseInt(config.getProperty("ultimoNumeroBoleta", "000"));
+        } catch (IOException e) {
+            return 0; // Si no existe el archivo, comenzar desde 001
+        }
+    }
+
+// Método para guardar el último número de boleta
+    private void guardarUltimoNumeroBoleta(int numero) {
+        Properties config = new Properties();
+        try {
+            config.setProperty("ultimoNumeroBoleta", String.format("%03d", numero));
+            config.store(new FileOutputStream("config.properties"), null);
+        } catch (IOException e) {
+            System.err.println("Error al guardar el número de boleta: " + e.getMessage());
+        }
+    }
 
     // Métodos del carrito de compras
     private void productoSeleccionado() {
@@ -546,12 +746,11 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         }
     }
 
-
     private void actualizarTotalPagar(double monto) {
         totalPagar += monto;
         lblTotal.setText("S/. " + totalPagar);
     }
-    
+
     private void eliminarProducto() {
         int indiceSeleccionado = ListaProductosVender.getSelectedIndex();
         if (indiceSeleccionado == -1) {
@@ -606,7 +805,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         }
         return jsonCarrito.toString();
     }
-  
+
     // Métodos de búsqueda
     private void configurarBuscadores() {
         agregarListenerBusqueda(txtBuscadorUsuarios, this::buscarUsuarios);
@@ -652,7 +851,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
             return false;
         }
         return true;
-    }    
+    }
 
     private void mostrarAdvertencia(String mensaje) {
         JOptionPane.showMessageDialog(this, mensaje, "Advertencia", JOptionPane.WARNING_MESSAGE);
@@ -671,11 +870,9 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         }
     }
 
-
     private int obtenerIdUsuarioSeleccionado(int fila) {
         return (int) tablaUsuarios.getValueAt(fila, 0);
     }
-
 
     private void abrirFormularioEdicionUsuario(int idUsuario) {
         DtUsuarios usuario = ngUsuarios.getUsuarioPorId(idUsuario);
@@ -699,11 +896,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     }
 
 
-    /**
-     * This method is called from within the constructor to initialize the form.
-     * WARNING: Do NOT modify this code. The content of this method is always
-     * regenerated by the Form Editor.
-     */
+
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
@@ -839,8 +1032,16 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jPanel38 = new javax.swing.JPanel();
         jPanel39 = new javax.swing.JPanel();
         jLabel59 = new javax.swing.JLabel();
+        jPanel34 = new javax.swing.JPanel();
+        txtHasta = new javax.swing.JTextField();
+        txtDesde = new javax.swing.JTextField();
+        jLabel6 = new javax.swing.JLabel();
+        btnFiltrar = new javax.swing.JButton();
+        jLabel5 = new javax.swing.JLabel();
+        btnMostrarTodo = new javax.swing.JButton();
+        jLabel7 = new javax.swing.JLabel();
+        jLabel8 = new javax.swing.JLabel();
         jPanel40 = new javax.swing.JPanel();
-        jButton4 = new javax.swing.JButton();
         jLabel58 = new javax.swing.JLabel();
         btnExportarVentas = new javax.swing.JButton();
         configuracionPanel = new javax.swing.JPanel();
@@ -1800,6 +2001,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jPanel3.setPreferredSize(new java.awt.Dimension(300, 0));
 
         ListaProductosVender.setBackground(new java.awt.Color(255, 255, 255));
+        ListaProductosVender.setFont(new java.awt.Font("Segoe UI", 1, 12)); // NOI18N
         jScrollPane2.setViewportView(ListaProductosVender);
 
         javax.swing.GroupLayout jPanel25Layout = new javax.swing.GroupLayout(jPanel25);
@@ -1845,27 +2047,28 @@ public final class MdiPrincipal extends javax.swing.JFrame {
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(jPanel3Layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(jLabel1)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(lblTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jPanel25, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jPanel26, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 285, Short.MAX_VALUE))
+                    .addComponent(jPanel26, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 295, Short.MAX_VALUE))
                 .addGap(15, 15, 15))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(lblTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 70, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(26, 26, 26))
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addContainerGap(58, Short.MAX_VALUE)
+                .addContainerGap(81, Short.MAX_VALUE)
                 .addComponent(jPanel25, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel1)
                     .addComponent(lblTotal))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 52, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 75, Short.MAX_VALUE)
                 .addComponent(jPanel26, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(41, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
 
         puntoDeVentaPanel.add(jPanel3);
@@ -2164,34 +2367,91 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         jLabel59.setForeground(new java.awt.Color(0, 0, 0));
         jLabel59.setText("Detalle de Ventas");
 
+        jPanel34.setBackground(new java.awt.Color(243, 244, 246));
+
+        jLabel6.setText("Desde:");
+
+        btnFiltrar.setText("Filtrar");
+        btnFiltrar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnFiltrarActionPerformed(evt);
+            }
+        });
+
+        jLabel5.setText("Hasta:");
+
+        btnMostrarTodo.setText("Mostrar Todo");
+        btnMostrarTodo.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnMostrarTodoActionPerformed(evt);
+            }
+        });
+
+        jLabel7.setForeground(new java.awt.Color(204, 204, 204));
+        jLabel7.setText("Año-Mes-Dia");
+
+        jLabel8.setForeground(new java.awt.Color(204, 204, 204));
+        jLabel8.setText("Año-Mes-Día");
+
+        javax.swing.GroupLayout jPanel34Layout = new javax.swing.GroupLayout(jPanel34);
+        jPanel34.setLayout(jPanel34Layout);
+        jPanel34Layout.setHorizontalGroup(
+            jPanel34Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel34Layout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(jLabel6)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanel34Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel7, javax.swing.GroupLayout.DEFAULT_SIZE, 95, Short.MAX_VALUE)
+                    .addComponent(txtDesde))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel5)
+                .addGap(18, 18, 18)
+                .addGroup(jPanel34Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel8, javax.swing.GroupLayout.DEFAULT_SIZE, 104, Short.MAX_VALUE)
+                    .addComponent(txtHasta))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnFiltrar, javax.swing.GroupLayout.PREFERRED_SIZE, 94, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnMostrarTodo, javax.swing.GroupLayout.PREFERRED_SIZE, 108, javax.swing.GroupLayout.PREFERRED_SIZE))
+        );
+        jPanel34Layout.setVerticalGroup(
+            jPanel34Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel34Layout.createSequentialGroup()
+                .addGroup(jPanel34Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel7)
+                    .addComponent(jLabel8))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(jPanel34Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(txtHasta, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel5)
+                    .addComponent(txtDesde, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel6, javax.swing.GroupLayout.PREFERRED_SIZE, 17, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnFiltrar, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnMostrarTodo, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
+        );
+
         javax.swing.GroupLayout jPanel39Layout = new javax.swing.GroupLayout(jPanel39);
         jPanel39.setLayout(jPanel39Layout);
         jPanel39Layout.setHorizontalGroup(
             jPanel39Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel39Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jLabel59, javax.swing.GroupLayout.PREFERRED_SIZE, 270, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addComponent(jLabel59, javax.swing.GroupLayout.PREFERRED_SIZE, 109, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(jPanel34, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel39Layout.setVerticalGroup(
             jPanel39Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jLabel59, javax.swing.GroupLayout.DEFAULT_SIZE, 38, Short.MAX_VALUE)
+            .addComponent(jLabel59, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(jPanel39Layout.createSequentialGroup()
+                .addComponent(jPanel34, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
 
         jPanel40.setBackground(new java.awt.Color(243, 244, 246));
         jPanel40.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
-
-        jButton4.setBackground(new java.awt.Color(59, 130, 246));
-        jButton4.setForeground(new java.awt.Color(255, 255, 255));
-        jButton4.setIcon(new javax.swing.ImageIcon("C:\\Users\\PC\\OneDrive\\Escritorio\\UNAMBA\\SEMESTRE IV\\GESTION DE PROYECTOS AGILES\\PROYECTO-FINAL\\SitemaDeVentaRopa\\src\\main\\resources\\com\\irissoft\\recursos\\BOLETA.png")); // NOI18N
-        jButton4.setText("Nueva Boleta");
-        jButton4.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
-        jButton4.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton4ActionPerformed(evt);
-            }
-        });
-        jPanel40.add(jButton4, new org.netbeans.lib.awtextra.AbsoluteConstraints(380, 0, 188, -1));
 
         jLabel58.setBackground(new java.awt.Color(0, 0, 0));
         jLabel58.setFont(new java.awt.Font("Arial Black", 1, 18)); // NOI18N
@@ -2209,25 +2469,25 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 btnExportarVentasActionPerformed(evt);
             }
         });
-        jPanel40.add(btnExportarVentas, new org.netbeans.lib.awtextra.AbsoluteConstraints(585, 0, 188, -1));
+        jPanel40.add(btnExportarVentas, new org.netbeans.lib.awtextra.AbsoluteConstraints(600, 0, 188, -1));
 
         javax.swing.GroupLayout reportesPanelLayout = new javax.swing.GroupLayout(reportesPanel);
         reportesPanel.setLayout(reportesPanelLayout);
         reportesPanelLayout.setHorizontalGroup(
             reportesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(reportesPanelLayout.createSequentialGroup()
-                .addContainerGap(21, Short.MAX_VALUE)
+                .addContainerGap(14, Short.MAX_VALUE)
                 .addGroup(reportesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(jPanel38, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jPanel32, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jPanel40, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jPanel39, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(23, Short.MAX_VALUE))
+                .addContainerGap(15, Short.MAX_VALUE))
         );
         reportesPanelLayout.setVerticalGroup(
             reportesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(reportesPanelLayout.createSequentialGroup()
-                .addContainerGap(17, Short.MAX_VALUE)
+                .addContainerGap(8, Short.MAX_VALUE)
                 .addComponent(jPanel40, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(jPanel39, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -2235,7 +2495,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
                 .addComponent(jPanel32, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(jPanel38, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(62, Short.MAX_VALUE))
+                .addContainerGap(51, Short.MAX_VALUE))
         );
 
         pnlContainer.add(reportesPanel);
@@ -2650,12 +2910,6 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         login.setVisible(true);
     }//GEN-LAST:event_lblCerrarSesionMouseClicked
 
-    private void jButton4ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton4ActionPerformed
-        FrmFactura frmFactura = new FrmFactura();
-        desktopPane.add(frmFactura);
-        frmFactura.setVisible(true);
-    }//GEN-LAST:event_jButton4ActionPerformed
-
     private void btnEliminarUsuarioMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnEliminarUsuarioMouseClicked
         int filaSeleccionada = tablaUsuarios.getSelectedRow();
 
@@ -2795,6 +3049,14 @@ public final class MdiPrincipal extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_btnGuardarConfiguracionActionPerformed
 
+    private void btnFiltrarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnFiltrarActionPerformed
+        filtrarVentasPorFecha();
+    }//GEN-LAST:event_btnFiltrarActionPerformed
+
+    private void btnMostrarTodoActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMostrarTodoActionPerformed
+        tablaReportes.setModel(modeloOriginal);
+    }//GEN-LAST:event_btnMostrarTodoActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JList<DtCarrito> ListaProductosVender;
@@ -2816,14 +3078,15 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel btnEliminarProducto;
     private javax.swing.JLabel btnEliminarUsuario;
     private javax.swing.JButton btnExportarVentas;
+    private javax.swing.JButton btnFiltrar;
     private javax.swing.JButton btnGuardarConfiguracion;
+    private javax.swing.JButton btnMostrarTodo;
     private javax.swing.JLabel btnPagarCompra;
     private javax.swing.JLabel btnQuitarProductoDeLista;
     private javax.swing.JPanel configuracionPanel;
     private javax.swing.JPanel dashboardPanel;
     private javax.swing.JDesktopPane desktopPane;
     private javax.swing.JButton jButton3;
-    private javax.swing.JButton jButton4;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel11;
     private javax.swing.JLabel jLabel12;
@@ -2848,6 +3111,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel44;
     private javax.swing.JLabel jLabel46;
     private javax.swing.JLabel jLabel47;
+    private javax.swing.JLabel jLabel5;
     private javax.swing.JLabel jLabel50;
     private javax.swing.JLabel jLabel51;
     private javax.swing.JLabel jLabel52;
@@ -2856,7 +3120,10 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel57;
     private javax.swing.JLabel jLabel58;
     private javax.swing.JLabel jLabel59;
+    private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel60;
+    private javax.swing.JLabel jLabel7;
+    private javax.swing.JLabel jLabel8;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel10;
     private javax.swing.JPanel jPanel11;
@@ -2884,6 +3151,7 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JPanel jPanel31;
     private javax.swing.JPanel jPanel32;
     private javax.swing.JPanel jPanel33;
+    private javax.swing.JPanel jPanel34;
     private javax.swing.JPanel jPanel35;
     private javax.swing.JPanel jPanel36;
     private javax.swing.JPanel jPanel37;
@@ -2942,7 +3210,9 @@ public final class MdiPrincipal extends javax.swing.JFrame {
     private javax.swing.JTextField txtBuscadorUsuarios;
     private javax.swing.JTextField txtBuscadorVentas;
     private javax.swing.JTextField txtCantidadProducto;
+    private javax.swing.JTextField txtDesde;
     private javax.swing.JTextField txtDireccionTienda;
+    private javax.swing.JTextField txtHasta;
     private javax.swing.JTextField txtNombreTienda;
     private javax.swing.JTextField txtRucTienda;
     private javax.swing.JTextField txtTelefonoTienda;

@@ -1,25 +1,43 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
- */
+
 package com.irissoft.capaPresentacion;
 
 import com.irissoft.capaNegocios.NgUsuarios;
 import com.irissoft.datos.DtUsuarios;
+import java.awt.BorderLayout;
 import java.awt.HeadlessException;
+import java.awt.Image;
+import javax.swing.ImageIcon;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
-/**
- *
- * @author KALI
- */
+
 public class Login extends javax.swing.JFrame {
 
     private final NgUsuarios ngUsuarios = new NgUsuarios();
 
     public Login() {
         initComponents();
+        try {
+            ImageIcon imageIcon = new ImageIcon(
+                    getClass().getResource("/com/irissoft/recursos/ZARA.jpg")
+            );
+
+            // Crear una imagen más pequeña (400x300 pixeles)
+            Image imagenPequeña = imageIcon.getImage()
+                    .getScaledInstance(415, 510, Image.SCALE_SMOOTH);
+
+            ImageIcon iconoPequeño = new ImageIcon(imagenPequeña);
+
+            PanelFondoImagen.removeAll();
+            PanelFondoImagen.setLayout(new BorderLayout());
+            PanelFondoImagen.add(new JLabel(iconoPequeño), BorderLayout.CENTER);
+            PanelFondoImagen.revalidate();
+            PanelFondoImagen.repaint();
+
+        } catch (Exception e) {
+            System.err.println("Error al cargar la imagen: " + e.getMessage());
+        }
     }
 
     // Método auxiliar para limpiar campos
@@ -31,7 +49,7 @@ public class Login extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jPanel1 = new javax.swing.JPanel();
+        PanelFondoImagen = new javax.swing.JPanel();
         jPanel2 = new javax.swing.JPanel();
         jPanel3 = new javax.swing.JPanel();
         jLabel1 = new javax.swing.JLabel();
@@ -43,18 +61,19 @@ public class Login extends javax.swing.JFrame {
         jLabel4 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setResizable(false);
         getContentPane().setLayout(new java.awt.GridLayout(1, 0));
 
-        jPanel1.setBackground(new java.awt.Color(0, 51, 255));
-        jPanel1.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
-        getContentPane().add(jPanel1);
+        PanelFondoImagen.setBackground(new java.awt.Color(0, 51, 255));
+        PanelFondoImagen.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+        getContentPane().add(PanelFondoImagen);
 
         jPanel2.setBackground(new java.awt.Color(243, 244, 246));
 
         jPanel3.setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel1.setForeground(new java.awt.Color(55, 65, 81));
-        jLabel1.setText("Usuario");
+        jLabel1.setText("Dni / Correo");
 
         jLabel2.setForeground(new java.awt.Color(55, 65, 81));
         jLabel2.setText("Contraseña");
@@ -122,16 +141,16 @@ public class Login extends javax.swing.JFrame {
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addContainerGap(70, Short.MAX_VALUE)
+                .addContainerGap(66, Short.MAX_VALUE)
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(70, Short.MAX_VALUE))
+                .addContainerGap(66, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel2Layout.createSequentialGroup()
-                .addContainerGap(48, Short.MAX_VALUE)
+                .addContainerGap(47, Short.MAX_VALUE)
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(48, Short.MAX_VALUE))
+                .addContainerGap(47, Short.MAX_VALUE))
         );
 
         getContentPane().add(jPanel2);
@@ -192,12 +211,12 @@ public class Login extends javax.swing.JFrame {
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JPanel PanelFondoImagen;
     private javax.swing.JButton btnIniciarSesion;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
-    private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
     private javax.swing.JPasswordField txtPass;

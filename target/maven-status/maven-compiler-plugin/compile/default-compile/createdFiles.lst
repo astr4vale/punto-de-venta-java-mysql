@@ -6,6 +6,7 @@ com\irissoft\capaPresentacion\FrmAddProveedor$1.class
 com\irissoft\capaAccesoDatos\QConfiguracion.class
 com\irissoft\capaNegocios\NgReportes.class
 com\irissoft\capaNegocios\NgVentas.class
+com\irissoft\capaPresentacion\MdiPrincipal$ProductoRenderer.class
 com\irissoft\capaPresentacion\MdiPrincipal$23.class
 com\irissoft\datos\DtProductos.class
 com\irissoft\capaPresentacion\FrmAddUsuario$2.class
@@ -55,6 +56,7 @@ com\irissoft\capaPresentacion\FrmAddProducto.class
 com\irissoft\capaPresentacion\MdiPrincipal$2.class
 com\irissoft\capaAccesoDatos\ConexionBD.class
 com\irissoft\capaPresentacion\MdiPrincipal$11.class
+com\irissoft\capaPresentacion\MdiPrincipal$31.class
 com\irissoft\capaAccesoDatos\QReportes.class
 com\irissoft\datos\DtClientes.class
 com\irissoft\repositorio\RpProductos.class
